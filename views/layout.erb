@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<%# data-theme は Design フェーズで決めた DaisyUI テーマに書き換える（plan.md の「デザイン仕様（固定）」参照）。light のまま放置しないこと %>
+<html lang="ja" data-theme="night">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>upstairs</title>
+
+  <%# Google Fonts: Noto Sans JP（日本語）/ Inter（英数字） %>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
+
+  <%# Tailwind CSS（CDN 版、ビルド不要）。typography プラグイン付き（markdown 表示の prose 用） %>
+  <script src="https://cdn.tailwindcss.com?plugins=typography"></script>
+
+  <%# DaisyUI（Tailwind 用 UI コンポーネント。テーマは data-theme で切り替え可） %>
+  <link href="https://cdn.jsdelivr.net/npm/daisyui@4.12.14/dist/full.min.css" rel="stylesheet" type="text/css" />
+
+  <%# Phosphor Icons（線画系 SVG アイコン） %>
+  <script src="https://unpkg.com/@phosphor-icons/web"></script>
+
+  <%# marked.js（markdown → HTML 変換。AI の返答を整形表示するのに使う） %>
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+
+  <%# 自前の追加スタイル %>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body class="font-sans">
+  <main class="container mx-auto px-4 py-8">
+    <%= yield %>
+  </main>
+
+  <%# data-markdown を付けた要素の中身（AI の返答など）を markdown として整形表示する。 %>
+  <%# ビュー側で data-markdown を付けた要素に AI の返答を入れると、読み込み時に HTML へ変換し prose で整える。 %>
+  <script>
+    document.addEventListener('DOMContentLoaded', function () {
+      if (!window.marked) return;
+      document.querySelectorAll('[data-markdown]').forEach(function (el) {
+        el.classList.add('prose', 'max-w-none');
+        el.innerHTML = marked.parse(el.textContent.trim());
+      });
+    });
+  </script>
+</body>
+</html>

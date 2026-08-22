@@ -1,0 +1,135 @@
+<%# ============================================ %>
+<%# 達成ポップアップ画面 %>
+<%# POST /sessions でセッション記録後にリダイレクトされる %>
+<%# @task       : 完了したタスク（Task モデル） %>
+<%# @ai_message : AIの励ましメッセージ（文字列） %>
+<%# ============================================ %>
+
+<%# 達成アニメーションのカスタムスタイル %>
+<style>
+  /* 星のきらめきアニメーション（signature 的な演出） */
+  @keyframes twinkle {
+    0%, 100% { opacity: 0.3; transform: scale(0.8); }
+    50%       { opacity: 1;   transform: scale(1.2); }
+  }
+
+  .star-dot {
+    animation: twinkle 2s ease-in-out infinite;
+  }
+
+  .star-dot:nth-child(2) { animation-delay: 0.4s; }
+  .star-dot:nth-child(3) { animation-delay: 0.8s; }
+  .star-dot:nth-child(4) { animation-delay: 1.2s; }
+  .star-dot:nth-child(5) { animation-delay: 1.6s; }
+
+  /* 達成アイコンのグロウ（タイマー画面の signature に合わせる） */
+  .achieve-icon {
+    filter:
+      drop-shadow(0 0 12px rgba(56, 189, 248, 0.7))
+      drop-shadow(0 0 28px rgba(56, 189, 248, 0.3));
+  }
+
+  /* カードのフェードイン */
+  @keyframes fadeInUp {
+    from {
+      opacity: 0;
+      transform: translateY(24px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .fade-in-up {
+    animation: fadeInUp 0.5s ease-out forwards;
+  }
+</style>
+
+<%# ページ全体のコンテナ %>
+<div class="min-h-screen flex flex-col items-center justify-center gap-8 py-12 px-4">
+
+  <%# ---- きらめく星の装飾 ---- %>
+  <div class="flex items-center gap-3">
+    <span class="star-dot w-2 h-2 rounded-full bg-sky-400/60 inline-block"></span>
+    <span class="star-dot w-1.5 h-1.5 rounded-full bg-sky-400/40 inline-block"></span>
+    <span class="star-dot w-2.5 h-2.5 rounded-full bg-sky-400/80 inline-block"></span>
+    <span class="star-dot w-1.5 h-1.5 rounded-full bg-sky-400/40 inline-block"></span>
+    <span class="star-dot w-2 h-2 rounded-full bg-sky-400/60 inline-block"></span>
+  </div>
+
+  <%# ---- メインカード（フェードインで登場） ---- %>
+  <div class="fade-in-up w-full max-w-md">
+    <div class="card bg-base-200 shadow-2xl border border-sky-400/30">
+      <div class="card-body items-center text-center gap-6 py-10 px-8">
+
+        <%# 達成アイコン %>
+        <div class="w-20 h-20 rounded-full bg-sky-400/10 flex items-center justify-center border border-sky-400/30">
+          <i class="ph-fill ph-shooting-star achieve-icon text-5xl text-sky-400"></i>
+        </div>
+
+        <%# 見出しと完了メッセージ %>
+        <div class="flex flex-col gap-2">
+          <%# 大見出し（signature のスカイブルー） %>
+          <h1 class="text-3xl font-black text-sky-400 tracking-tight">
+            集中完了
+          </h1>
+          <p class="text-base-content/60 text-sm font-medium tracking-widest uppercase">
+            Focus Session Complete
+          </p>
+        </div>
+
+        <%# 完了タスク名 %>
+        <% if @task %>
+        <div class="w-full rounded-xl bg-base-300/60 border border-base-content/10 px-5 py-3">
+          <p class="text-base-content/50 text-xs font-medium mb-1 flex items-center gap-1 justify-center">
+            <i class="ph ph-check-circle text-sky-400 text-sm"></i>
+            完了したタスク
+          </p>
+          <p class="text-base-content text-base font-bold leading-snug">
+            <%= @task.name %>
+          </p>
+        </div>
+        <% end %>
+
+        <%# AIの励ましメッセージエリア %>
+        <% if @ai_message && !@ai_message.empty? %>
+        <div class="w-full rounded-xl bg-sky-400/5 border border-sky-400/20 px-5 py-4">
+          <p class="text-sky-400/80 text-xs font-medium mb-2 flex items-center gap-1 justify-center">
+            <i class="ph-fill ph-sparkle text-sm"></i>
+            コーチからのメッセージ
+          </p>
+          <%# marked.js が data-markdown を検知して markdown を整形表示する %>
+          <div data-markdown class="text-base-content/80 text-sm leading-relaxed text-center prose-sky">
+            <%= @ai_message %>
+          </div>
+        </div>
+        <% end %>
+
+        <%# アクションボタン群 %>
+        <div class="flex flex-col gap-3 w-full pt-2">
+
+          <%# カレンダーで達成履歴を確認 %>
+          <a href="/calendar" class="btn btn-primary w-full gap-2 font-bold">
+            <i class="ph-fill ph-calendar-check text-lg"></i>
+            カレンダーで確認する
+          </a>
+
+          <%# マイページへ戻る %>
+          <a href="/mypage" class="btn btn-ghost w-full gap-2 text-base-content/60">
+            <i class="ph ph-house text-lg"></i>
+            マイページへ戻る
+          </a>
+
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <%# ---- 下部の装飾テキスト ---- %>
+  <p class="text-base-content/25 text-xs tracking-widest uppercase">
+    upstairs — Keep Going
+  </p>
+
+</div>

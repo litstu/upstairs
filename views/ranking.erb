@@ -1,0 +1,113 @@
+<div class="min-h-screen py-8">
+
+  <div class="navbar bg-base-200 rounded-2xl shadow-lg mb-8 px-4">
+    <div class="navbar-start">
+      <span class="text-xl font-black tracking-tight">
+        <span class="text-sky-400">up</span><span class="text-white">stairs</span>
+      </span>
+    </div>
+    <div class="navbar-center">
+      <span class="text-base-content/70 text-sm font-medium flex items-center gap-1">
+        <i class="ph-fill ph-trophy text-amber-400 text-lg"></i>
+        ランキング
+      </span>
+    </div>
+    <div class="navbar-end">
+      <a href="/mypage" class="btn btn-ghost btn-sm flex items-center gap-1 text-sky-400">
+        <i class="ph ph-arrow-left text-lg"></i>
+        マイページに戻る
+      </a>
+    </div>
+  </div>
+
+  <div class="max-w-lg mx-auto flex flex-col gap-4">
+
+    <%# ---- ランキング参加切り替えカード ---- %>
+    <% if @user.points >= 1000 %>
+      <div class="card bg-base-200 shadow">
+        <div class="card-body py-4 flex-row items-center gap-4">
+          <div class="flex-1">
+            <p class="font-semibold text-sm text-base-content/80">ランキングに名前を載せる</p>
+            <p class="text-xs text-base-content/40 mt-0.5">
+              <% if @user.show_in_ranking %>
+                現在、ランキングに参加中です。
+              <% else %>
+                現在、ランキングには表示されていません。
+              <% end %>
+            </p>
+          </div>
+          <form action="/ranking/toggle" method="post">
+            <button type="submit" class="btn btn-sm font-bold <%= @user.show_in_ranking ? 'btn-error' : 'btn-warning' %> gap-1">
+              <% if @user.show_in_ranking %>
+                <i class="ph ph-eye-slash text-base"></i>
+                非表示にする
+              <% else %>
+                <i class="ph ph-eye text-base"></i>
+                参加する
+              <% end %>
+            </button>
+          </form>
+        </div>
+      </div>
+    <% else %>
+      <div class="card bg-base-200 shadow">
+        <div class="card-body py-4 items-center text-center gap-1">
+          <i class="ph ph-lock text-amber-400/60 text-2xl"></i>
+          <p class="text-sm text-base-content/50">1000pt に達するとランキングに参加できるよ！</p>
+          <p class="text-xs text-base-content/30">現在 <%= @user.points %>pt</p>
+        </div>
+      </div>
+    <% end %>
+
+    <div class="card bg-base-200 shadow-xl">
+      <div class="card-body gap-2">
+        <h2 class="card-title text-lg font-bold flex items-center gap-2 mb-2">
+          <i class="ph-fill ph-ranking text-amber-400 text-xl"></i>
+          ポイントランキング
+        </h2>
+
+        <% if @ranking.empty? %>
+          <div class="py-8 text-center text-base-content/40 text-sm">
+            まだ参加者がいません。
+          </div>
+        <% else %>
+          <% @ranking.each_with_index do |u, i| %>
+            <% is_me = u.id == @user.id %>
+            <div class="flex items-center gap-4 px-3 py-2 rounded-xl <%= is_me ? 'bg-amber-400/10 border border-amber-400/30' : 'bg-base-300/50' %>">
+
+              <div class="w-8 text-center font-black flex-shrink-0
+                <%= i == 0 ? 'text-amber-400 text-xl' : i == 1 ? 'text-slate-300 text-lg' : i == 2 ? 'text-orange-400 text-lg' : 'text-base-content/40 text-sm' %>">
+                <% if i == 0 %>
+                  <i class="ph-fill ph-trophy"></i>
+                <% elsif i == 1 %>
+                  2
+                <% elsif i == 2 %>
+                  3
+                <% else %>
+                  <%= i + 1 %>
+                <% end %>
+              </div>
+
+              <div class="flex-1 font-semibold text-sm <%= is_me ? 'text-amber-300' : 'text-base-content/80' %>">
+                <%= ERB::Util.html_escape(u.username) %>
+                <% if is_me %>
+                  <span class="badge badge-warning badge-xs ml-1">あなた</span>
+                <% end %>
+              </div>
+
+              <div class="flex items-center gap-1 flex-shrink-0">
+                <i class="ph-fill ph-star text-amber-400 text-sm"></i>
+                <span class="font-black text-amber-400"><%= u.points %></span>
+                <span class="text-xs text-base-content/40">pt</span>
+              </div>
+
+            </div>
+          <% end %>
+        <% end %>
+
+      </div>
+    </div>
+
+  </div>
+
+</div>

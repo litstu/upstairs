@@ -1,0 +1,888 @@
+<%# ============================================ %>
+<%# マイページ %>
+<%# タスク一覧・新規タスク登録フォームを表示する %>
+<%# ============================================ %>
+
+<%# 色名とTailwindクラスのマッピング（ERBで使う） %>
+<% color_map = {
+  'sky'     => { bg: 'bg-sky-400',     ring: 'ring-sky-400',     text: 'text-sky-400',     border: 'border-sky-400' },
+  'violet'  => { bg: 'bg-violet-400',  ring: 'ring-violet-400',  text: 'text-violet-400',  border: 'border-violet-400' },
+  'rose'    => { bg: 'bg-rose-400',    ring: 'ring-rose-400',    text: 'text-rose-400',    border: 'border-rose-400' },
+  'amber'   => { bg: 'bg-amber-400',   ring: 'ring-amber-400',   text: 'text-amber-400',   border: 'border-amber-400' },
+  'emerald' => { bg: 'bg-emerald-400', ring: 'ring-emerald-400', text: 'text-emerald-400', border: 'border-emerald-400' },
+  'orange'  => { bg: 'bg-orange-400',  ring: 'ring-orange-400',  text: 'text-orange-400',  border: 'border-orange-400' },
+} %>
+
+<div class="min-h-screen py-8">
+
+  <%# ---- ヘッダーナビゲーション ---- %>
+  <div class="navbar bg-base-200 rounded-2xl shadow-lg mb-8 px-4">
+
+    <%# サービス名（左側） %>
+    <div class="navbar-start">
+      <span class="text-xl font-black tracking-tight">
+        <span class="text-sky-400">up</span><span class="text-white">stairs</span>
+      </span>
+    </div>
+
+    <%# ユーザー名（中央） %>
+    <div class="navbar-center">
+      <span class="text-base-content/70 text-sm font-medium flex items-center gap-1">
+        <i class="ph-fill ph-user-circle text-sky-400 text-lg"></i>
+        <%= @user.username %> のマイページ
+      </span>
+    </div>
+
+    <%# ボタン群（右側） %>
+    <div class="navbar-end flex items-center gap-2">
+
+      <%# カレンダーへのリンク %>
+      <a href="/calendar" class="btn btn-ghost btn-sm flex items-center gap-1 text-sky-400">
+        <i class="ph ph-calendar text-lg"></i>
+        カレンダー
+      </a>
+
+      <%# 1000pt以上のときランキングリンクを表示 %>
+      <% if @user.points >= 1000 %>
+        <a href="/ranking" class="btn btn-ghost btn-sm flex items-center gap-1 text-amber-400">
+          <i class="ph ph-trophy text-lg"></i>
+          ランキング
+        </a>
+      <% end %>
+
+      <%# ログアウトボタン（POST /logout に送信） %>
+      <form action="/logout" method="post">
+        <button type="submit" class="btn btn-ghost btn-sm flex items-center gap-1 text-base-content/50 hover:text-white">
+          <i class="ph ph-sign-out text-lg"></i>
+          ログアウト
+        </button>
+      </form>
+
+    </div>
+  </div>
+
+<%# ============================================ %>
+<%# 帰宅後の動画タイム宣言カード (ゆるキャラAI) %>
+<%# ============================================ %>
+<div class="card bg-base-200 border border-sky-400/30 shadow-lg relative overflow-hidden">
+  <div class="card-body py-5 px-6">
+    <div class="flex flex-col sm:flex-row items-center justify-between gap-4">
+      
+      <%# ゆるキャラヘッダー情報 %>
+      <div class="flex items-center gap-3 text-center sm:text-left">
+        <div class="w-12 h-12 rounded-full bg-sky-400/20 border border-sky-400/40 flex items-center justify-center text-2xl flex-shrink-0 animate-bounce">
+          🐱
+        </div>
+        <div>
+          <h3 class="font-bold text-sm text-base-content flex items-center gap-1 justify-center sm:justify-start">
+            <span>動画を見る前にゆるキャラに宣言！</span>
+            <span class="badge badge-info badge-xs text-white">NEW</span>
+          </h3>
+          <p class="text-xs text-base-content/60 mt-0.5">時間になったらゆるキャラが優しく声かけしてくれるよ〜</p>
+        </div>
+      </div>
+
+      <%# タイマー選択ボタン %>
+      <div id="yuru-buttons" class="flex gap-2 w-full sm:w-auto justify-center">
+        <button onclick="startVideoTimer(15)" class="btn btn-outline btn-info btn-sm flex-1 sm:flex-none">15分</button>
+        <button onclick="startVideoTimer(20)" class="btn btn-info btn-sm text-white flex-1 sm:flex-none">20分</button>
+        <button onclick="startVideoTimer(30)" class="btn btn-outline btn-info btn-sm flex-1 sm:flex-none">30分</button>
+      </div>
+
+      <%# タイマー計測中の表示（初期表示は非表示） %>
+      <div id="yuru-status" class="hidden flex items-center gap-3">
+        <span class="loading loading-spinner text-info loading-sm"></span>
+        <span id="yuru-timer-text" class="text-sm font-semibold text-sky-400">動画タイム中...</span>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<%# ゆるキャラメッセージダイアログ（モーダル） %>
+<dialog id="yuru-modal" class="modal modal-bottom sm:modal-middle">
+  <div class="modal-box bg-base-200 border border-sky-400/40 text-center flex flex-col items-center py-6">
+    <div class="w-16 h-16 rounded-full bg-sky-400/20 border-2 border-sky-400 flex items-center justify-center text-3xl mb-3">
+      🐱
+    </div>
+    <h3 class="font-bold text-lg text-sky-400 mb-2">動画の時間終了〜！</h3>
+    
+    <%# AIからのメッセージ表示場所 %>
+    <div class="bg-base-300/60 rounded-xl p-4 w-full my-2 text-sm text-base-content/90 leading-relaxed border border-base-content/5" id="yuru-ai-message">
+      <span class="loading loading-dots loading-md text-info"></span>
+    </div>
+
+    <div class="modal-action w-full flex flex-col gap-2 mt-4">
+      <button onclick="closeYuruModal()" class="btn btn-info text-white font-bold w-full">
+        <i class="ph-fill ph-check-circle text-lg"></i>
+        さっそく勉強をはじめる！
+      </button>
+    </div>
+  </div>
+</dialog>
+
+<script>
+  let yuruTimer = null;
+
+  function startVideoTimer(minutes) {
+    if (!confirm(minutes + '分間動画を楽しむ宣言をしますか？\n時間になったらゆるキャラが呼ぶね🐱')) return;
+
+    // UIの切り替え
+    document.getElementById('yuru-buttons').classList.add('hidden');
+    document.getElementById('yuru-status').classList.remove('hidden');
+    document.getElementById('yuru-timer-text').textContent = minutes + '分後にゆるキャラがお知らせします🐱';
+
+    // 実際のタイマー処理（動作確認時は `minutes * 60 * 1000` を `10000`（10秒）などにするとテストしやすいです）
+    const durationMs = minutes * 60 * 1000;
+    
+    yuruTimer = setTimeout(function() {
+      // 時間が来たらAIメッセージを取得して表示
+      fetch('/ai/yuru_reminder', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: 'duration_minutes=' + minutes
+      })
+      .then(res => res.json())
+      .then(data => {
+        document.getElementById('yuru-ai-message').textContent = data.message;
+        document.getElementById('yuru-modal').showModal();
+        
+        // UIを元に戻す
+        document.getElementById('yuru-buttons').classList.remove('hidden');
+        document.getElementById('yuru-status').classList.add('hidden');
+      })
+      .catch(() => {
+        document.getElementById('yuru-ai-message').textContent = '時間になったよ〜！リフレッシュできたかな？勉強スタートしよう〜！';
+        document.getElementById('yuru-modal').showModal();
+        document.getElementById('yuru-buttons').classList.remove('hidden');
+        document.getElementById('yuru-status').classList.add('hidden');
+      });
+    }, durationMs);
+  }
+
+  function closeYuruModal() {
+    document.getElementById('yuru-modal').close();
+  }
+</script>
+
+
+  <%# ---- ポイントバー ---- %>
+  <div class="mb-6 flex items-center gap-3 px-1">
+    <div class="flex items-center gap-2 bg-base-200 rounded-2xl px-5 py-3 shadow">
+      <i class="ph-fill ph-star text-amber-400 text-2xl"></i>
+      <span class="text-base-content/60 text-sm font-medium">ポイント</span>
+      <span id="user-points" class="text-2xl font-black text-amber-400"><%= @user.points %></span>
+      <span class="text-base-content/40 text-sm">pt</span>
+    </div>
+    <span class="text-xs text-base-content/30">タスク完了 +10pt / タイマー完走 +100pt</span>
+  </div>
+
+  <%# ---- 1000pt 達成バナー（初回のみ表示） ---- %>
+  <% if @user.points >= 1000 && !@user.leaderboard_notified %>
+    <div id="leaderboard-banner" class="mb-6 rounded-2xl bg-gradient-to-r from-amber-400/20 to-yellow-400/10 border border-amber-400/30 px-5 py-4 flex items-center gap-4 shadow">
+      <i class="ph-fill ph-trophy text-amber-400 text-3xl flex-shrink-0"></i>
+      <div class="flex-1">
+        <p class="font-bold text-amber-300 text-sm">1000pt 達成！ランキングに参加できるようになったよ！</p>
+        <p class="text-xs text-base-content/50 mt-0.5">ランキングページで参加するか選べるよ。</p>
+      </div>
+      <a href="/ranking" class="btn btn-warning btn-sm font-bold flex items-center gap-1 flex-shrink-0">
+        <i class="ph-fill ph-trophy text-base"></i>
+        ランキングを見る
+      </a>
+    </div>
+    <script>
+      // バナーを表示した時点でサーバーに「見た」を伝える
+      fetch('/leaderboard/notified', { method: 'POST' });
+    </script>
+  <% end %>
+
+  <%# ---- メインコンテンツ（2カラムレイアウト） ---- %>
+  <div class="flex flex-col lg:flex-row gap-8 items-start">
+
+    <%# ==== 左カラム: 新規タスク登録フォーム ==== %>
+    <div class="w-full lg:w-80 flex-shrink-0">
+      <div class="card bg-base-200 shadow-xl">
+        <div class="card-body gap-4">
+
+          <%# フォームの見出し %>
+          <h2 class="card-title text-lg font-bold flex items-center gap-2">
+            <i class="ph-fill ph-plus-circle text-sky-400 text-xl"></i>
+            タスクを追加
+          </h2>
+
+          <%# 新規タスク登録フォーム（POST /tasks に送信） %>
+          <form action="/tasks" method="post" class="flex flex-col gap-3">
+
+            <%# タスク名の入力欄 %>
+            <div class="form-control">
+              <label class="label pb-1">
+                <span class="label-text text-sm font-medium flex items-center gap-1">
+                  <i class="ph ph-note-pencil text-sky-400"></i>
+                  タスク名
+                </span>
+              </label>
+              <input
+                type="text"
+                name="name"
+                placeholder="例：数学の宿題をやる"
+                class="input input-bordered focus:input-info w-full"
+                required
+              />
+            </div>
+
+            <%# 説明の入力欄 %>
+            <div class="form-control">
+              <label class="label pb-1">
+                <span class="label-text text-sm font-medium flex items-center gap-1">
+                  <i class="ph ph-text-align-left text-sky-400"></i>
+                  詳しい説明（任意）
+                </span>
+              </label>
+              <textarea
+                name="description"
+                placeholder="例：教科書の3章を読んで、問題1〜10を解く"
+                class="textarea textarea-bordered focus:textarea-info w-full resize-none"
+                rows="3"
+              ></textarea>
+            </div>
+
+            <%# 締め切り日の入力欄 %>
+            <div class="form-control">
+              <label class="label pb-1">
+                <span class="label-text text-sm font-medium flex items-center gap-1">
+                  <i class="ph ph-calendar-check text-sky-400"></i>
+                  締め切り日（任意）
+                </span>
+              </label>
+              <input
+                type="date"
+                name="due_date"
+                class="input input-bordered focus:input-info w-full"
+              />
+            </div>
+
+            <%# タスクの色選択 %>
+            <div class="form-control">
+              <label class="label pb-1">
+                <span class="label-text text-sm font-medium flex items-center gap-1">
+                  <i class="ph ph-palette text-sky-400"></i>
+                  タスクの色
+                </span>
+              </label>
+              <div class="flex gap-2 flex-wrap">
+                <% Task::COLORS.each_with_index do |color, i| %>
+                  <label class="cursor-pointer">
+                    <input type="radio" name="color" value="<%= color %>" class="sr-only" <%= i == 0 ? 'checked' : '' %>>
+                    <span
+                      class="color-dot block w-7 h-7 rounded-full <%= color_map[color][:bg] %> ring-2 ring-transparent ring-offset-2 ring-offset-base-200 transition-all"
+                      data-color="<%= color %>"
+                      title="<%= color %>"
+                    ></span>
+                  </label>
+                <% end %>
+              </div>
+            </div>
+
+            <%# 登録ボタン %>
+            <button type="submit" class="btn btn-info w-full font-bold text-white mt-1">
+              <i class="ph-fill ph-plus text-lg"></i>
+              タスクを登録
+            </button>
+
+          </form>
+
+        </div>
+      </div>
+    </div>
+
+
+
+    <%# ==== 右カラム: タスク一覧 ==== %>
+    <div class="w-full flex-1">
+      
+      <!-- 今日のタスク表示エリア -->
+<div class="mb-8 p-4 bg-slate-800 rounded-xl border border-sky-500/30">
+  <h2 class="text-xl font-bold text-sky-400 mb-3">📅 今日のタスク（<%= Date.today.strftime('%m/%d') %>）</h2>
+  
+  <% if @today_tasks.empty? %>
+    <p class="text-gray-400 text-sm">今日が期限のタスクはありません！</p>
+  <% else %>
+    <div class="space-y-4">
+      <% @today_tasks.each do |task| %>
+        <% 
+          # 最上位の親タスク（「数学のテスト対策」など）を取得
+          root_task = task
+          root_task = root_task.parent_task while root_task.parent_task
+          parent_name = (root_task != task) ? root_task.name : task.name
+        %>
+        <div class="p-3 bg-slate-700/50 rounded-lg border border-slate-600">
+          <!-- 上段：親タスクの名称 ＋ 集中開始ボタン -->
+          <div class="flex items-center justify-between font-bold text-white mb-2">
+            <span class="text-base text-sky-300">📌 <%= parent_name %></span>
+            <a href="/timer/<%= task.id %>" class="px-3 py-1 bg-sky-500 hover:bg-sky-600 text-xs text-white rounded-full font-normal shadow transition">
+              集中開始
+            </a>
+          </div>
+
+          <!-- 下段：一段下げて字を薄くし、子タスクの名称と詳細を表示 -->
+          <div class="ml-3 pl-3 border-l-2 border-sky-500/40 text-gray-300 text-sm space-y-1">
+            <div class="font-medium text-gray-200">
+              └ <%= task.name %>
+            </div>
+            <% if task.description && !task.description.strip.empty? %>
+              <div class="text-xs text-gray-400 leading-relaxed whitespace-pre-wrap">
+                <%= task.description %>
+              </div>
+            <% end %>
+          </div>
+        </div>
+      <% end %>
+    </div>
+  <% end %>
+</div>
+
+
+      <%# タスク一覧の見出し %>
+      <h2 class="text-xl font-bold flex items-center gap-2 mb-4">
+        <i class="ph-fill ph-list-checks text-sky-400 text-2xl"></i>
+        タスク一覧
+        <%# タスクの件数バッジ %>
+        <span class="badge badge-info badge-outline font-semibold"><%= @parent_tasks.length %> 件</span>
+      </h2>
+
+      <%# タスクが0件のときのメッセージ %>
+      <% if @parent_tasks.empty? %>
+        <div class="card bg-base-200 shadow">
+          <div class="card-body items-center text-center py-12 gap-3">
+            <i class="ph ph-rocket-launch text-sky-400/50 text-5xl"></i>
+            <p class="text-base-content/50 text-sm">
+              タスクがまだありません。<br>左のフォームから最初のタスクを登録してみましょう。
+            </p>
+          </div>
+        </div>
+
+      <%# タスクが1件以上あるときにループ表示 %>
+      <% else %>
+        <div class="flex flex-col gap-3">
+
+          <%# 各親タスクのカード %>
+          <% @parent_tasks.each do |task| %>
+            <% c = color_map[task.color] || color_map['sky'] %>
+
+            <%# 親タスクのカード %>
+            <div class="card bg-base-200 shadow-md hover:shadow-lg transition-shadow border-l-4 <%= c[:border] %>" id="task-<%= task.id %>">
+              <div class="card-body py-4 px-5">
+                <div class="flex items-start justify-between gap-4">
+
+                  <%# チェックボックス %>
+                  <div class="flex-shrink-0 pt-0.5">
+                    <button
+                      type="button"
+                      class="task-check-btn w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all
+                        <%= task.completed ? c[:bg] + ' border-transparent' : 'border-base-content/30 hover:' + c[:border] %>"
+                      data-task-id="<%= task.id %>"
+                      title="完了にする"
+                    >
+                      <% if task.completed %>
+                        <i class="ph-fill ph-check text-white text-xs"></i>
+                      <% end %>
+                    </button>
+                  </div>
+
+                  <%# タスク情報（左側） %>
+                  <div class="flex flex-col gap-1 flex-1 min-w-0">
+
+                    <%# タスク名と完了バッジ %>
+                    <div class="flex items-center gap-2 flex-wrap">
+                      <%# 子タスクがある場合、矢印ボタンで展開/折り畳みできる %>
+                      <% if task.child_tasks.any? %>
+                        <button
+                          type="button"
+                          class="btn btn-ghost btn-xs p-0 w-6 h-6 min-h-0 <%= c[:text] %>"
+                          onclick="toggleSubtasks(<%= task.id %>)"
+                          id="toggle-btn-<%= task.id %>"
+                          title="小タスクを表示/非表示"
+                        >
+                          <i class="ph-fill ph-caret-down text-base" id="toggle-icon-<%= task.id %>"></i>
+                        </button>
+                      <% end %>
+                      <span class="font-semibold text-base <%= task.completed ? 'line-through text-base-content/40' : 'text-white' %>">
+                        <%= task.name %>
+                      </span>
+                      <%# 完了済みのときだけ「完了」バッジを表示 %>
+                      <% if task.completed %>
+                        <span class="badge badge-success badge-sm font-medium flex items-center gap-1">
+                          <i class="ph-fill ph-check-circle text-xs"></i>
+                          完了
+                        </span>
+                      <% end %>
+                      <%# 子タスクの件数バッジ %>
+                      <% if task.child_tasks.any? %>
+                        <span class="badge badge-outline badge-sm font-medium <%= c[:text] %>">
+                          小タスク <%= task.child_tasks.length %>件
+                        </span>
+                      <% end %>
+                    </div>
+
+                    <%# 説明（description がある場合だけ表示） %>
+                    <% if task.description && !task.description.empty? %>
+                      <p class="text-xs text-base-content/60 leading-snug mt-0.5">
+                        <%= task.description %>
+                      </p>
+                    <% end %>
+
+                    <%# 締め切り日（due_date がある場合だけ表示） %>
+                    <% if task.due_date %>
+                      <span class="text-xs text-base-content/50 flex items-center gap-1">
+                        <i class="ph ph-calendar <%= c[:text] %>/70"></i>
+                        締め切り: <%= task.due_date.strftime('%Y年%m月%d日') %>
+                      </span>
+                    <% end %>
+
+                  </div>
+
+                  <%# アクションボタン群（右側） %>
+                  <div class="flex items-center gap-2 flex-shrink-0">
+
+                    <%# 「集中開始」ボタン: GET /timer/:task_id へのリンク %>
+                    <a href="/timer/<%= task.id %>" class="btn btn-info btn-sm font-bold text-white flex items-center gap-1">
+                      <i class="ph-fill ph-timer text-base"></i>
+                      集中開始
+                    </a>
+
+                    <%# 「AIに分解してもらう」ボタン: POST /ai/decompose に task_id を送信 %>
+                    <form action="/ai/decompose" method="post">
+                      <input type="hidden" name="task_id" value="<%= task.id %>">
+                      <button type="submit" class="btn btn-ghost btn-sm flex items-center gap-1 <%= c[:text] %> hover:bg-base-content/10">
+                        <i class="ph ph-brain text-base"></i>
+                        AIに分割
+                      </button>
+                    </form>
+
+                    <%# 「編集」ボタン: モーダルを開く %>
+                    <button
+                      type="button"
+                      class="btn btn-ghost btn-sm text-base-content/50 hover:text-white px-2"
+                      onclick="openEditModal('<%= task.id %>', '<%= ERB::Util.html_escape(task.name) %>', '<%= ERB::Util.html_escape(task.description.to_s) %>', '<%= task.due_date ? task.due_date.strftime('%Y-%m-%d') : '' %>', '<%= task.color %>')"
+                      title="タスクを編集"
+                    >
+                      <i class="ph ph-pencil-simple text-xl"></i>
+                    </button>
+
+                    <%# 「削除」ボタン: モーダルを開く（赤のバツ印） %>
+                    <button
+                      type="button"
+                      class="btn btn-ghost btn-sm text-error hover:bg-error/10 px-2"
+                      onclick="openDeleteModal('<%= task.id %>', '<%= ERB::Util.html_escape(task.name) %>')"
+                      title="タスクを削除"
+                    >
+                      <i class="ph-fill ph-x-circle text-xl"></i>
+                    </button>
+
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <%# 子タスク一覧（展開状態で表示） %>
+            <% if task.child_tasks.any? %>
+              <div id="subtasks-<%= task.id %>" class="flex flex-col gap-2 pl-6">
+                <% task.child_tasks.order(created_at: :asc).each do |child| %>
+                  <% cc = color_map[child.effective_color] || color_map['sky'] %>
+                  <div class="card bg-base-300 shadow-sm border-l-2 <%= cc[:border] %>">
+                    <div class="card-body py-3 px-4">
+                      <div class="flex items-start justify-between gap-3">
+
+                        <%# チェックボックス（子タスク） %>
+                        <div class="flex-shrink-0 pt-0.5">
+                          <button
+                            type="button"
+                            class="task-check-btn w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all
+                              <%= child.completed ? cc[:bg] + ' border-transparent' : 'border-base-content/30 hover:' + cc[:border] %>"
+                            data-task-id="<%= child.id %>"
+                            title="完了にする"
+                          >
+                            <% if child.completed %>
+                              <i class="ph-fill ph-check text-white" style="font-size:0.6rem"></i>
+                            <% end %>
+                          </button>
+                        </div>
+
+                        <%# 子タスク情報（左側） %>
+                        <div class="flex flex-col gap-1 flex-1 min-w-0">
+                          <div class="flex items-center gap-2 flex-wrap">
+                            <i class="ph ph-arrow-bend-down-right <%= cc[:text] %>/60 text-sm flex-shrink-0"></i>
+                            <span class="font-medium text-sm <%= child.completed ? 'line-through text-base-content/40' : 'text-base-content/90' %>">
+                              <%= child.name %>
+                            </span>
+                            <% if child.completed %>
+                              <span class="badge badge-success badge-xs font-medium flex items-center gap-1">
+                                <i class="ph-fill ph-check-circle text-xs"></i>
+                                完了
+                              </span>
+                            <% end %>
+                          </div>
+                          <% if child.description && !child.description.empty? %>
+                            <p class="text-xs text-base-content/50 leading-snug pl-5">
+                              <%= child.description %>
+                            </p>
+                          <% end %>
+                          <% if child.due_date %>
+                            <span class="text-xs text-base-content/40 flex items-center gap-1 pl-5">
+                              <i class="ph ph-calendar <%= cc[:text] %>/50"></i>
+                              締め切り: <%= child.due_date.strftime('%Y年%m月%d日') %>
+                            </span>
+                          <% end %>
+                        </div>
+
+                        <%# 子タスクのアクションボタン群 %>
+                        <div class="flex items-center gap-1 flex-shrink-0">
+
+                          <%# 「集中開始」ボタン %>
+                          <a href="/timer/<%= child.id %>" class="btn btn-info btn-xs font-bold text-white flex items-center gap-1">
+                            <i class="ph-fill ph-timer text-sm"></i>
+                            集中開始
+                          </a>
+
+                          <%# 「編集」ボタン %>
+                          <button
+                            type="button"
+                            class="btn btn-ghost btn-xs text-base-content/50 hover:text-white px-1"
+                            onclick="openEditModal('<%= child.id %>', '<%= ERB::Util.html_escape(child.name) %>', '<%= ERB::Util.html_escape(child.description.to_s) %>', '<%= child.due_date ? child.due_date.strftime('%Y-%m-%d') : '' %>', '')"
+                            title="タスクを編集"
+                          >
+                            <i class="ph ph-pencil-simple text-base"></i>
+                          </button>
+
+                          <%# 「削除」ボタン %>
+                          <button
+                            type="button"
+                            class="btn btn-ghost btn-xs text-error hover:bg-error/10 px-1"
+                            onclick="openDeleteModal('<%= child.id %>', '<%= ERB::Util.html_escape(child.name) %>')"
+                            title="タスクを削除"
+                          >
+                            <i class="ph-fill ph-x-circle text-base"></i>
+                          </button>
+
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                <% end %>
+              </div>
+            <% end %>
+
+          <% end %>
+
+        </div>
+      <% end %>
+
+    </div>
+  </div>
+
+</div>
+
+<%# ---- 編集モーダル ---- %>
+<dialog id="edit-modal" class="modal">
+  <div class="modal-box">
+
+    <%# アイコン + 見出し %>
+    <div class="flex items-center gap-3 mb-4">
+      <div class="w-10 h-10 rounded-full bg-sky-400/15 flex items-center justify-center">
+        <i class="ph-fill ph-pencil-simple text-xl text-sky-400"></i>
+      </div>
+      <h3 class="text-lg font-bold">タスクを編集</h3>
+    </div>
+
+    <%# 編集フォーム（POST /tasks/:id/edit に送信） %>
+    <form id="edit-form" action="" method="post" class="flex flex-col gap-3">
+
+      <div class="form-control">
+        <label class="label pb-1">
+          <span class="label-text text-sm font-medium flex items-center gap-1">
+            <i class="ph ph-note-pencil text-sky-400"></i>
+            タスク名
+          </span>
+        </label>
+        <input
+          type="text"
+          name="name"
+          id="edit-name"
+          class="input input-bordered focus:input-info w-full"
+          required
+        />
+      </div>
+
+      <div class="form-control">
+        <label class="label pb-1">
+          <span class="label-text text-sm font-medium flex items-center gap-1">
+            <i class="ph ph-text-align-left text-sky-400"></i>
+            詳しい説明（任意）
+          </span>
+        </label>
+        <textarea
+          name="description"
+          id="edit-description"
+          class="textarea textarea-bordered focus:textarea-info w-full resize-none"
+          rows="3"
+        ></textarea>
+      </div>
+
+      <div class="form-control">
+        <label class="label pb-1">
+          <span class="label-text text-sm font-medium flex items-center gap-1">
+            <i class="ph ph-calendar-check text-sky-400"></i>
+            締め切り日（任意）
+          </span>
+        </label>
+        <input
+          type="date"
+          name="due_date"
+          id="edit-due-date"
+          class="input input-bordered focus:input-info w-full"
+        />
+      </div>
+
+      <%# 色選択（親タスクのみ表示。子タスクは color='' で送られるので表示しない） %>
+      <div id="edit-color-section" class="form-control hidden">
+        <label class="label pb-1">
+          <span class="label-text text-sm font-medium flex items-center gap-1">
+            <i class="ph ph-palette text-sky-400"></i>
+            タスクの色
+          </span>
+        </label>
+        <div class="flex gap-2 flex-wrap">
+          <% Task::COLORS.each do |color| %>
+            <label class="cursor-pointer">
+              <input type="radio" name="color" value="<%= color %>" id="edit-color-<%= color %>" class="sr-only">
+              <span
+                class="color-dot block w-7 h-7 rounded-full <%= color_map[color][:bg] %> ring-2 ring-transparent ring-offset-2 ring-offset-base-200 transition-all"
+                data-color="<%= color %>"
+                title="<%= color %>"
+              ></span>
+            </label>
+          <% end %>
+        </div>
+      </div>
+
+      <div class="flex gap-3 mt-2">
+        <%# 「保存」ボタン %>
+        <button type="submit" class="btn btn-info flex-1 font-bold text-white gap-1">
+          <i class="ph-fill ph-floppy-disk text-base"></i>
+          保存する
+        </button>
+        <%# 「キャンセル」ボタン %>
+        <button type="button" onclick="closeEditModal()" class="btn btn-ghost flex-1 font-bold gap-1">
+          <i class="ph ph-x text-base"></i>
+          キャンセル
+        </button>
+      </div>
+
+    </form>
+
+  </div>
+
+  <%# 背景クリックで閉じる %>
+  <form method="dialog" class="modal-backdrop">
+    <button>close</button>
+  </form>
+</dialog>
+
+<%# ---- 削除確認モーダル ---- %>
+<dialog id="delete-modal" class="modal">
+  <div class="modal-box">
+
+    <%# アイコン + 見出し %>
+    <div class="flex flex-col items-center gap-3 mb-4">
+      <div class="w-14 h-14 rounded-full bg-error/15 flex items-center justify-center">
+        <i class="ph-fill ph-trash text-3xl text-error"></i>
+      </div>
+      <h3 class="text-lg font-bold text-center">本当に消しますか？</h3>
+      <p id="delete-task-name" class="text-base-content/60 text-sm text-center leading-snug"></p>
+    </div>
+
+    <%# 削除フォーム（POST /tasks/:id/delete に送信） %>
+    <form id="delete-form" action="" method="post">
+
+      <div class="flex gap-3 mt-2">
+        <%# 「はい（赤）」ボタン %>
+        <button type="submit" class="btn btn-error flex-1 font-bold gap-1">
+          <i class="ph-fill ph-trash text-base"></i>
+          はい、消す
+        </button>
+        <%# 「いいえ（緑）」ボタン %>
+        <button type="button" onclick="closeDeleteModal()" class="btn btn-success flex-1 font-bold gap-1">
+          <i class="ph-fill ph-arrow-u-up-left text-base"></i>
+          いいえ、戻る
+        </button>
+      </div>
+
+    </form>
+
+  </div>
+
+  <%# 背景クリックで閉じる %>
+  <form method="dialog" class="modal-backdrop">
+    <button>close</button>
+  </form>
+</dialog>
+
+<%# ---- JavaScript: モーダルの開閉・子タスク展開・チェック・色選択 ---- %>
+<script>
+  // ============================================
+  // 色ドットの選択状態をリングで表現するユーティリティ
+  // ============================================
+  function syncColorDots(container, selectedColor) {
+    container.querySelectorAll('.color-dot').forEach(function(dot) {
+      var c = dot.getAttribute('data-color');
+      if (c === selectedColor) {
+        dot.classList.add('ring-white');
+        dot.classList.remove('ring-transparent');
+      } else {
+        dot.classList.remove('ring-white');
+        dot.classList.add('ring-transparent');
+      }
+    });
+  }
+
+  // 新規登録フォームの色ドットをクリックで選択
+  document.querySelectorAll('form[action="/tasks"] .color-dot').forEach(function(dot) {
+    dot.addEventListener('click', function() {
+      var color = dot.getAttribute('data-color');
+      var radio = dot.closest('label').querySelector('input[type=radio]');
+      if (radio) radio.checked = true;
+      syncColorDots(dot.closest('.flex'), color);
+    });
+  });
+  // 初期選択（sky）を反映する
+  (function() {
+    var form = document.querySelector('form[action="/tasks"]');
+    if (!form) return;
+    var checked = form.querySelector('input[name=color]:checked');
+    if (checked) syncColorDots(form.querySelector('.flex.gap-2.flex-wrap'), checked.value);
+  })();
+
+  // ============================================
+  // 子タスクの展開/折り畳みを切り替える
+  // ============================================
+  function toggleSubtasks(taskId) {
+    var subtasks = document.getElementById('subtasks-' + taskId);
+    var icon = document.getElementById('toggle-icon-' + taskId);
+    if (!subtasks || !icon) return;
+
+    if (subtasks.style.display === 'none') {
+      subtasks.style.display = 'flex';
+      icon.className = 'ph-fill ph-caret-down text-base';
+    } else {
+      subtasks.style.display = 'none';
+      icon.className = 'ph-fill ph-caret-right text-base';
+    }
+  }
+
+  // ============================================
+  // タスクのチェック（完了/未完了トグル）
+  // ============================================
+  document.querySelectorAll('.task-check-btn').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      var taskId = btn.getAttribute('data-task-id');
+      fetch('/tasks/' + taskId + '/toggle', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
+      })
+      .then(function(res) { return res.json(); })
+      .then(function(data) {
+        // ポイント表示を更新する
+        var pts = document.getElementById('user-points');
+        if (pts) pts.textContent = data.points;
+
+        // チェックボタンの見た目を切り替える（ページリロードなし）
+        if (data.completed) {
+          btn.classList.add('border-transparent');
+          btn.classList.remove('border-base-content/30');
+          // 色クラスはサーバーから受け取れないので、最も近い bg クラスを流用する
+          btn.innerHTML = '<i class="ph-fill ph-check text-white text-xs"></i>';
+        } else {
+          btn.classList.remove('border-transparent');
+          btn.classList.add('border-base-content/30');
+          btn.innerHTML = '';
+        }
+
+        // タスク名を打ち消し線で切り替える
+        var card = document.getElementById('task-' + taskId);
+        if (card) {
+          var nameEl = card.querySelector('.font-semibold, .font-medium');
+          if (nameEl) {
+            if (data.completed) {
+              nameEl.classList.add('line-through', 'text-base-content/40');
+              nameEl.classList.remove('text-white', 'text-base-content/90');
+            } else {
+              nameEl.classList.remove('line-through', 'text-base-content/40');
+              nameEl.classList.add('text-white');
+            }
+          }
+        }
+      });
+    });
+  });
+
+  // ============================================
+  // 編集モーダルを開く
+  // ============================================
+  function openEditModal(taskId, taskName, taskDescription, taskDueDate, taskColor) {
+    var modal = document.getElementById('edit-modal');
+    var form  = document.getElementById('edit-form');
+    var nameInput = document.getElementById('edit-name');
+    var descInput = document.getElementById('edit-description');
+    var dueDateInput = document.getElementById('edit-due-date');
+    var colorSection = document.getElementById('edit-color-section');
+
+    form.action = '/tasks/' + taskId + '/edit';
+    nameInput.value = taskName;
+    descInput.value = taskDescription;
+    dueDateInput.value = taskDueDate;
+
+    // 親タスクのときだけ色選択を表示する（子タスクは taskColor='' で来る）
+    if (taskColor) {
+      colorSection.classList.remove('hidden');
+      var radio = document.getElementById('edit-color-' + taskColor);
+      if (radio) radio.checked = true;
+      syncColorDots(colorSection.querySelector('.flex'), taskColor);
+
+      // 色ドットのクリックイベント（モーダル内）
+      colorSection.querySelectorAll('.color-dot').forEach(function(dot) {
+        dot.onclick = function() {
+          var c = dot.getAttribute('data-color');
+          var r = dot.closest('label').querySelector('input[type=radio]');
+          if (r) r.checked = true;
+          syncColorDots(colorSection.querySelector('.flex'), c);
+        };
+      });
+    } else {
+      colorSection.classList.add('hidden');
+    }
+
+    modal.showModal();
+  }
+
+  function closeEditModal() {
+    document.getElementById('edit-modal').close();
+  }
+
+  // ============================================
+  // 削除モーダルを開く
+  // ============================================
+  function openDeleteModal(taskId, taskName) {
+    var modal = document.getElementById('delete-modal');
+    var form  = document.getElementById('delete-form');
+    var nameEl = document.getElementById('delete-task-name');
+
+    form.action = '/tasks/' + taskId + '/delete';
+    nameEl.textContent = '「' + taskName + '」を削除します';
+
+    modal.showModal();
+  }
+
+  function closeDeleteModal() {
+    document.getElementById('delete-modal').close();
+  }
+</script>

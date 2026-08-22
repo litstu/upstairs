@@ -1,0 +1,96 @@
+<%# ============================================ %>
+<%# トップページ（未ログイン時のログイン画面） %>
+<%# サービス名・キャッチコピー・ログインフォームを表示 %>
+<%# ============================================ %>
+
+<div class="min-h-screen flex flex-col items-center justify-center py-12">
+
+  <%# ---- サービス名・キャッチコピー ---- %>
+  <div class="text-center mb-10">
+    <h1 class="text-5xl font-black tracking-tight mb-3">
+      <span class="text-sky-400">up</span><span class="text-white">stairs</span>
+    </h1>
+
+  </div>
+
+  <%# ---- ログインカード ---- %>
+  <div class="card bg-base-200 shadow-xl w-full max-w-sm">
+    <div class="card-body gap-4">
+
+      <%# カード見出し %>
+      <h2 class="card-title text-xl font-bold flex items-center gap-2">
+        <i class="ph-fill ph-sign-in text-sky-400"></i>
+        ログイン
+      </h2>
+
+      <%# エラーメッセージ（@error がある場合のみ表示） %>
+      <% if @error %>
+        <div class="alert alert-error py-2 text-sm flex items-center gap-2">
+          <i class="ph-fill ph-warning-circle text-lg"></i>
+          <span><%= @error %></span>
+        </div>
+      <% end %>
+
+      <%# ログインフォーム（POST /login に送信） %>
+      <form action="/login" method="post" class="flex flex-col gap-3">
+
+        <%# アカウント名の入力欄 %>
+        <div class="form-control">
+          <label class="label pb-1">
+            <span class="label-text text-sm font-medium flex items-center gap-1">
+              <i class="ph ph-user text-sky-400"></i>
+              アカウント名
+            </span>
+          </label>
+          <input
+            type="text"
+            name="username"
+            placeholder="アカウント名を入力"
+            class="input input-bordered focus:input-info w-full"
+            required
+          />
+        </div>
+
+        <%# パスワードの入力欄 %>
+        <div class="form-control">
+          <label class="label pb-1">
+            <span class="label-text text-sm font-medium flex items-center gap-1">
+              <i class="ph ph-lock text-sky-400"></i>
+              パスワード
+            </span>
+          </label>
+          <input
+            type="password"
+            name="password"
+            placeholder="パスワードを入力"
+            class="input input-bordered focus:input-info w-full"
+            required
+          />
+        </div>
+
+        <%# ログインボタン %>
+        <button type="submit" class="btn btn-info w-full mt-1 font-bold text-white">
+          <i class="ph-fill ph-sign-in text-lg"></i>
+          ログイン
+        </button>
+
+      </form>
+
+      <%# 区切り線 %>
+      <div class="divider text-base-content/30 text-xs my-0">はじめての方はこちら</div>
+
+      <%# 新規登録リンク %>
+      <a href="/register" class="btn btn-outline btn-info w-full font-bold">
+        <i class="ph ph-user-plus text-lg"></i>
+        アカウントを作る
+      </a>
+
+    </div>
+  </div>
+
+  <%# フッター的な補足文 %>
+  <p class="mt-8 text-base-content/30 text-xs">
+    集中セッションの記録・タスク管理を無料で使えます
+  </p>
+
+</div>

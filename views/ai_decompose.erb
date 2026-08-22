@@ -1,0 +1,308 @@
+<%# ============================================ %>
+<%# AI分解結果画面 %>
+<%# AIが返したスモールステップを整形表示する %>
+<%# ============================================ %>
+
+<div class="min-h-screen py-8">
+
+  <%# ---- ヘッダーナビゲーション ---- %>
+  <div class="navbar bg-base-200 rounded-2xl shadow-lg mb-8 px-4">
+
+    <%# サービス名（左側） %>
+    <div class="navbar-start">
+      <span class="text-xl font-black tracking-tight">
+        <span class="text-sky-400">up</span><span class="text-white">stairs</span>
+      </span>
+    </div>
+
+    <%# ページタイトル（中央） %>
+    <div class="navbar-center">
+      <span class="text-base-content/70 text-sm font-medium flex items-center gap-1">
+        <i class="ph-fill ph-brain text-sky-400 text-lg"></i>
+        AI タスク分割
+      </span>
+    </div>
+
+    <%# マイページへ戻るリンク（右側） %>
+    <div class="navbar-end">
+      <a href="/mypage" class="btn btn-ghost btn-sm flex items-center gap-1 text-sky-400">
+        <i class="ph ph-arrow-left text-lg"></i>
+        マイページに戻る
+      </a>
+    </div>
+
+  </div>
+
+  <%# ---- メインコンテンツ ---- %>
+  <div class="max-w-2xl mx-auto flex flex-col gap-6">
+
+    <%# ==== 対象タスクの情報カード ==== %>
+    <div class="card bg-base-200 shadow-xl">
+      <div class="card-body gap-3">
+
+        <%# 見出し %>
+        <h2 class="card-title text-lg font-bold flex items-center gap-2">
+          <i class="ph-fill ph-target text-sky-400 text-xl"></i>
+          対象タスク
+        </h2>
+
+        <%# タスク名 %>
+        <div class="flex items-start gap-2">
+          <i class="ph ph-note-pencil text-sky-400 text-base mt-0.5 flex-shrink-0"></i>
+          <span class="text-white font-semibold text-lg leading-snug"><%= @task.name %></span>
+        </div>
+
+        <%# 締め切り日（due_date がある場合だけ表示） %>
+        <% if @task.due_date %>
+          <div class="flex items-center gap-2">
+            <i class="ph ph-calendar-check text-sky-400 text-base flex-shrink-0"></i>
+            <span class="text-base-content/60 text-sm">
+              締め切り: <%= @task.due_date.strftime('%Y年%m月%d日') %>
+            </span>
+          </div>
+        <% end %>
+
+        <%# 過去のログへのリンク（ログが2件以上あるとき表示） %>
+        <% if @logs && @logs.length >= 2 %>
+          <div class="flex items-center gap-2 mt-1">
+            <a href="/ai/decompose/<%= @task.id %>/logs" class="btn btn-ghost btn-xs text-sky-400 flex items-center gap-1">
+              <i class="ph ph-clock-counter-clockwise text-sm"></i>
+              過去の分割履歴を見る（<%= @logs.length %>件）
+            </a>
+          </div>
+        <% end %>
+
+      </div>
+    </div>
+
+    <%# ==== AIが提案したスモールステップ（最新の結果） ==== %>
+    <div class="card bg-base-200 shadow-xl">
+      <div class="card-body gap-4">
+
+        <%# 見出し %>
+        <h2 class="card-title text-lg font-bold flex items-center gap-2">
+          <i class="ph-fill ph-sparkle text-sky-400 text-xl"></i>
+          AIが提案する小タスク
+          <% if @logs && @logs.any? %>
+            <span class="text-xs font-normal text-base-content/50">
+              （<%= @logs.first.created_at.strftime('%m月%d日 %H:%M') %> 時点）
+            </span>
+          <% end %>
+        </h2>
+
+        <%# 案内テキスト %>
+        <p class="text-xs text-base-content/50 flex items-center gap-1">
+          <i class="ph ph-hand-pointing text-sky-400"></i>
+          気に入ったステップの「採用」ボタンを押すと、マイページに小タスクとして追加されるよ！
+        </p>
+
+        <%# AIの返答をJS側でパースして構造化カードとして表示する %>
+        <div
+          id="steps-raw"
+          data-task-id="<%= @task.id %>"
+          class="hidden"
+        ><%= ERB::Util.html_escape(@result) %></div>
+        <div id="steps-container" class="flex flex-col gap-3"></div>
+
+      </div>
+    </div>
+
+    <%# ==== アクション ==== %>
+    <div class="card bg-base-200 shadow">
+      <div class="card-body py-4 flex-row items-center gap-4">
+
+        <%# 採用済みの件数（JS が更新する） %>
+        <div class="flex items-center gap-2 flex-1 text-base-content/60 text-sm">
+          <i class="ph ph-check-circle text-sky-400 text-lg flex-shrink-0"></i>
+          <span id="adopted-count-msg">採用したいステップのボタンを押してみよう！</span>
+        </div>
+
+        <%# マイページに戻るボタン %>
+        <a href="/mypage" class="btn btn-info font-bold text-white flex items-center gap-1 flex-shrink-0">
+          <i class="ph-fill ph-list-checks text-base"></i>
+          マイページに戻る
+        </a>
+
+      </div>
+    </div>
+
+<%# ---- JavaScript: AIテキストをパースして構造化カード表示 + fetch で採用 ---- %>
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    var rawEl = document.getElementById('steps-raw');
+    var container = document.getElementById('steps-container');
+    if (!rawEl || !container) return;
+
+    var taskId = rawEl.getAttribute('data-task-id') || '';
+    var rawText = rawEl.textContent || '';
+    var adoptedCount = 0;
+
+    // ============================================
+    // AI テキストをステップごとのオブジェクトに分解する
+    // 期待フォーマット:
+    //   ### ステップN: タイトル
+    //   **期限:** YYYY年M月D日
+    //   詳細文
+    // ============================================
+    function parseSteps(text) {
+      var steps = [];
+      // ### ステップN: で始まるブロックに分割する
+      var blocks = text.split(/(?=###\s*ステップ\d+[:：])/);
+      blocks.forEach(function(block) {
+        block = block.trim();
+        if (!block) return;
+
+        // タイトル行を抽出する
+        var titleMatch = block.match(/###\s*ステップ\d+[:：]\s*(.+)/);
+        if (!titleMatch) return;
+        var title = titleMatch[1].trim();
+
+        // **期限:** の行を抽出する
+        var dueMatch = block.match(/\*\*期限[:：]\*\*\s*(.+)/);
+        var dueRaw = dueMatch ? dueMatch[1].trim() : '';
+
+        // 期限行・タイトル行を除いた残りを詳細とする
+        var detail = block
+          .replace(/###\s*ステップ\d+[:：].+/, '')
+          .replace(/\*\*期限[:：]\*\*\s*.+/, '')
+          .replace(/\*\*/g, '')
+          .trim();
+
+        // 日付文字列を YYYY-MM-DD 形式に変換する
+        var dueDateStr = '';
+        var today = new Date();
+        var thisYear = today.getFullYear();
+        var dm1 = dueRaw.match(/(\d{4})[年\/\-](\d{1,2})[月\/\-](\d{1,2})/);
+        if (dm1) {
+          dueDateStr = dm1[1] + '-' + String(dm1[2]).padStart(2,'0') + '-' + String(dm1[3]).padStart(2,'0');
+        } else {
+          var dm2 = dueRaw.match(/(\d{1,2})月(\d{1,2})日/);
+          if (dm2) {
+            dueDateStr = thisYear + '-' + String(dm2[1]).padStart(2,'0') + '-' + String(dm2[2]).padStart(2,'0');
+          }
+        }
+
+        steps.push({ title: title, dueRaw: dueRaw, dueDateStr: dueDateStr, detail: detail });
+      });
+      return steps;
+    }
+
+    // ============================================
+    // 各ステップをカード形式でレンダリングする
+    // ============================================
+    function renderSteps(steps) {
+      if (steps.length === 0) {
+        // パースできなかった場合はそのままテキスト表示する
+        var fallback = document.createElement('div');
+        fallback.setAttribute('data-markdown', '');
+        fallback.className = 'text-base-content/90 leading-relaxed text-sm';
+        fallback.textContent = rawText;
+        container.appendChild(fallback);
+        // marked.js に再処理させる
+        if (window.marked && fallback.textContent) {
+          fallback.innerHTML = window.marked.parse(fallback.textContent);
+        }
+        return;
+      }
+
+      steps.forEach(function(step, i) {
+        var card = document.createElement('div');
+        card.className = 'rounded-xl border border-base-content/10 bg-base-300/50 px-4 py-3 flex flex-col gap-1';
+        card.id = 'step-card-' + i;
+
+        // タイトル行（番号 + タイトル + 採用ボタン）
+        var titleRow = document.createElement('div');
+        titleRow.className = 'flex items-center justify-between gap-3';
+
+        var titleText = document.createElement('span');
+        titleText.className = 'font-bold text-base text-white flex items-center gap-2';
+        titleText.innerHTML =
+          '<span class="badge badge-info badge-sm font-bold min-w-[1.6rem] justify-center">' + (i + 1) + '</span>' +
+          escapeHtml(step.title);
+
+        var adoptBtn = document.createElement('button');
+        adoptBtn.type = 'button';
+        adoptBtn.className = 'btn btn-success btn-sm font-bold flex-shrink-0 gap-1';
+        adoptBtn.innerHTML = '<i class="ph-fill ph-plus-circle text-base"></i> 採用';
+        adoptBtn.addEventListener('click', function() { adoptStep(step, adoptBtn); });
+
+        titleRow.appendChild(titleText);
+        titleRow.appendChild(adoptBtn);
+        card.appendChild(titleRow);
+
+        // 期限行
+        if (step.dueRaw) {
+          var dueRow = document.createElement('div');
+          dueRow.className = 'flex items-center gap-1 text-xs text-base-content/50 pl-1';
+          dueRow.innerHTML =
+            '<i class="ph ph-calendar text-sky-400/70 text-sm"></i>' +
+            '<span>期限: ' + escapeHtml(step.dueRaw) + '</span>';
+          card.appendChild(dueRow);
+        }
+
+        // 詳細行
+        if (step.detail) {
+          var detailRow = document.createElement('div');
+          detailRow.className = 'text-sm text-base-content/70 leading-relaxed pl-1 mt-0.5';
+          detailRow.textContent = step.detail;
+          card.appendChild(detailRow);
+        }
+
+        container.appendChild(card);
+      });
+    }
+
+    // ============================================
+    // 採用ボタンが押されたとき: fetch で裏側に保存してページに留まる
+    // ============================================
+    function adoptStep(step, btn) {
+      btn.disabled = true;
+      btn.classList.remove('btn-success');
+      btn.classList.add('btn-ghost', 'text-success');
+      btn.innerHTML = '<i class="ph-fill ph-check-circle text-base"></i> 採用済み';
+
+      var body = 'step_name=' + encodeURIComponent(step.title) +
+                 '&step_description=' + encodeURIComponent(step.detail) +
+                 '&parent_task_id=' + encodeURIComponent(taskId) +
+                 '&due_date=' + encodeURIComponent(step.dueDateStr);
+
+      fetch('/tasks/from_step', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: body
+      })
+      .then(function(res) {
+        if (!res.ok) throw new Error('failed');
+        return res.json();
+      })
+      .then(function() {
+        adoptedCount++;
+        var msg = document.getElementById('adopted-count-msg');
+        if (msg) msg.textContent = adoptedCount + '件のステップを採用しました！';
+      })
+      .catch(function() {
+        // 失敗したらボタンを元に戻す
+        btn.disabled = false;
+        btn.classList.add('btn-success');
+        btn.classList.remove('btn-ghost', 'text-success');
+        btn.innerHTML = '<i class="ph-fill ph-plus-circle text-base"></i> 採用';
+        var msg = document.getElementById('adopted-count-msg');
+        if (msg) msg.textContent = '保存に失敗しました。もう一度試してみて！';
+      });
+    }
+
+    function escapeHtml(str) {
+      var d = document.createElement('div');
+      d.appendChild(document.createTextNode(str));
+      return d.innerHTML;
+    }
+
+    // 実行
+    var steps = parseSteps(rawText);
+    renderSteps(steps);
+  });
+</script>
+
+  </div>
+
+</div>

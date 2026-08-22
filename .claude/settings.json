@@ -1,0 +1,24 @@
+{
+  "permissions": { "allow": ["WebSearch"], "deny": ["WebFetch"] },
+  "env": { "CLAUDE_CODE_MAX_RETRIES": "3" },
+  "skillOverrides": {
+    "web-design": "off",
+
+    "speckit-specify": "off",
+    "speckit-plan": "off",
+    "speckit-tasks": "off",
+
+    "speckit-implement": "off",
+    "speckit-clarify": "off",
+    "speckit-analyze": "off",
+    "speckit-checklist": "off",
+    "speckit-constitution": "off",
+    "speckit-taskstoissues": "off",
+
+    "speckit-git-commit": "off",
+    "speckit-git-feature": "off",
+    "speckit-git-initialize": "off",
+    "speckit-git-remote": "off",
+    "speckit-git-validate": "off"
+  }
+}

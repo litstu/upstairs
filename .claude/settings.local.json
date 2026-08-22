@@ -1,0 +1,44 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(uvx --version)",
+      "Bash(uv --version)",
+      "Bash(uvx --from git+https://github.com/github/spec-kit.git specify init --here --ai claude --ignore-agent-tools)",
+      "Bash(uvx --from git+https://github.com/github/spec-kit.git specify init --here --ai claude --ignore-agent-tools --force)",
+      "Bash(mkdir -p \"/Users/kkenty/Desktop/sintatra-spec-driven -template/.claude/skills/speckit-start\")",
+      "Skill(deep-research)",
+      "Skill(deep-research:*)",
+      "Bash(gh repo *)",
+      "Bash(gh search *)",
+      "Bash(gh issue *)",
+      "Bash(mkdir -p \"/Users/kkenty/Desktop/sintatra-spec-driven -template/.claude/agents\")",
+      "Bash(mkdir -p \"/Users/kkenty/Desktop/sintatra-spec-driven -template/.claude/skills/speckit-build\")",
+      "Bash(mkdir -p \"/Users/kkenty/Desktop/sintatra-spec-driven -template/.claude/.private\")",
+      "Bash(mv \"/Users/kkenty/Desktop/sintatra-spec-driven -template/.claude/member.md\" \"/Users/kkenty/Desktop/sintatra-spec-driven -template/.claude/.private/member.md\")",
+      "Bash(ruby -v)",
+      "Bash(bundle -v)",
+      "Read(//opt/homebrew/bin/**)",
+      "Read(//Users/kkenty/.rbenv/shims/**)",
+      "Read(//opt/homebrew/Cellar/ruby/**)",
+      "Read(//Users/kkenty/.rbenv/versions/**)",
+      "Bash(rbenv version *)",
+      "Bash(~/.rbenv/shims/ruby -v)",
+      "Bash(~/.rbenv/shims/bundle -v)",
+      "Bash(grep -n \"rbenv\" ~/.zshrc ~/.zprofile ~/.bash_profile ~/.bashrc 2>/dev/null)",
+      "Read(//Users/kkenty/**)",
+      "Bash(~/.rbenv/shims/bundle exec *)",
+      "Bash(lsof -iTCP:4567 -sTCP:LISTEN)",
+      "Bash(mkdir -p .claude/skills/speckit-feedback && ls .claude/skills/speckit-feedback/)",
+      "Bash(rm -rf specs/ .claude/.private/ && ls specs/ .claude/.private/ 2>&1)",
+      "Bash(git checkout *)",
+      "Bash(sed -i '' 's|4567|8080|g' .claude/skills/speckit-build/SKILL.md .claude/skills/speckit-feedback/SKILL.md && grep -n \"4567\\\\|8080\" .claude/skills/speckit-build/SKILL.md .claude/skills/speckit-feedback/SKILL.md)",
+      "Bash(awk -F= '/^[A-Za-z_]+=/ {print $1\"  -> \" \\(length\\($2\\)>0 ? \"設定あり\" : \"空\"\\)}' .env)"
+    ],
+    "defaultMode": "bypassPermissions",
+    "additionalDirectories": [
+      "/Users/kkenty/Desktop/sintatra-spec-driven -template/.claude/skills",
+      "/Users/kkenty/Desktop/sintatra-spec-driven -template/.claude/.private",
+      "/Users/kkenty/Desktop/sintatra-spec-driven -template/.claude/skills/speckit-build"
+    ]
+  }
+}

@@ -1,0 +1,165 @@
+/* ============================================
+   自分専用のスタイルを書く場所
+   --------------------------------------------
+   このファイルは Tailwind / DaisyUI で足りない
+   時にだけ使うよ。基本は views/*.erb に
+   class="bg-pink-100 p-4" みたいに書けばOK！
+   ============================================ */
+
+/* 日本語フォントを Noto Sans JP に */
+body {
+  font-family: 'Noto Sans JP', 'Inter', system-ui, sans-serif;
+}
+
+/* ============================================
+   BongoCat 風キャラクター（CSS アート）
+   タイマー画面に表示する猫のキャラクター
+   ============================================ */
+
+/* キャラクター全体を包むコンテナ */
+.bongo-cat-container {
+  position: relative;
+  width: 160px;
+  height: 200px;
+  margin: 0 auto;
+}
+
+/* 猫の体 */
+.cat-body {
+  position: absolute;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 120px;
+  height: 100px;
+  background-color: #bae6fd; /* スカイブルー系 */
+  border-radius: 50%;
+  border: 3px solid #7dd3fc;
+}
+
+/* 猫の頭 */
+.cat-head {
+  position: absolute;
+  top: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 90px;
+  height: 80px;
+  background-color: #bae6fd;
+  border-radius: 50%;
+  border: 3px solid #7dd3fc;
+}
+
+/* 猫の耳（::before が左耳、::after が右耳） */
+.cat-head::before,
+.cat-head::after {
+  content: '';
+  position: absolute;
+  top: -22px;
+  width: 0;
+  height: 0;
+  /* 三角形を border で作る */
+  border-left: 15px solid transparent;
+  border-right: 15px solid transparent;
+  border-bottom: 28px solid #7dd3fc;
+}
+
+/* 左耳の位置 */
+.cat-head::before {
+  left: 8px;
+}
+
+/* 右耳の位置 */
+.cat-head::after {
+  right: 8px;
+}
+
+/* 猫の目のコンテナ */
+.cat-eyes {
+  position: absolute;
+  top: 28px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 60px;
+  display: flex;
+  justify-content: space-between;
+}
+
+/* 左目・右目（共通スタイル） */
+.cat-eye-left,
+.cat-eye-right {
+  width: 14px;
+  height: 14px;
+  background-color: #1e293b;
+  border-radius: 50%;
+}
+
+/* 猫の手（左右共通のベース） */
+.cat-paw-left,
+.cat-paw-right {
+  position: absolute;
+  bottom: 10px;
+  width: 30px;
+  height: 36px;
+  background-color: #bae6fd;
+  border-radius: 50% 50% 40% 40%;
+  border: 3px solid #7dd3fc;
+}
+
+/* 左手の位置 */
+.cat-paw-left {
+  left: 4px;
+  transform-origin: bottom center;
+}
+
+/* 右手の位置 */
+.cat-paw-right {
+  right: 4px;
+  transform-origin: bottom center;
+}
+
+/* ============================================
+   手を叩くアニメーション（bongo）
+   タイマー動作中に上下に動く
+   ============================================ */
+@keyframes bongo-paw {
+  0%, 100% { transform: translateY(0); }
+  50%       { transform: translateY(-15px); }
+}
+
+/* タイマー動作中は左手をアニメーションさせる */
+.timer-active .cat-paw-left {
+  animation: bongo-paw 0.5s ease-in-out infinite;
+}
+
+/* タイマー動作中は右手を少し遅らせてアニメーションさせる */
+.timer-active .cat-paw-right {
+  animation: bongo-paw 0.5s ease-in-out infinite 0.25s;
+}
+
+/* ============================================
+   タイマー数字のグロウ効果
+   集中タイマーの残り時間をスカイブルーに光らせる
+   ============================================ */
+.timer-glow {
+  text-shadow:
+    0 0 20px rgba(56, 189, 248, 0.6),
+    0 0 40px rgba(56, 189, 248, 0.3);
+}
+
+/* ============================================
+   達成ポップアップ
+   タスク完了時に画面全体に重ねて表示するオーバーレイ
+   ============================================ */
+#complete-popup {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}

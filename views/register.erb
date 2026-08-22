@@ -1,0 +1,112 @@
+<%# ============================================ %>
+<%# 新規登録画面 %>
+<%# POST /register にフォームを送信する %>
+<%# ============================================ %>
+
+<div class="min-h-screen flex items-center justify-center py-12">
+  <div class="w-full max-w-md">
+
+    <%# ロゴ・タイトルエリア %>
+    <div class="text-center mb-8">
+      <div class="flex items-center justify-center gap-2 mb-3">
+        <i class="ph-fill ph-rocket-launch text-4xl text-sky-400"></i>
+      </div>
+      <h1 class="text-3xl font-bold text-sky-400" style="font-family: 'Noto Sans JP', sans-serif;">
+        upstairs
+      </h1>
+      <p class="text-base-content/60 mt-1 text-sm">新規登録</p>
+    </div>
+
+    <%# 登録フォームカード %>
+    <div class="card bg-base-200 shadow-xl border border-sky-400/20">
+      <div class="card-body gap-5">
+
+        <%# エラーメッセージ（@error があるときだけ表示） %>
+        <% if @error %>
+          <div class="alert alert-error">
+            <i class="ph ph-warning-circle text-xl"></i>
+            <span><%= @error %></span>
+          </div>
+        <% end %>
+
+        <%# 登録フォーム %>
+        <form action="/register" method="post" class="flex flex-col gap-4">
+
+          <%# アカウント名入力欄 %>
+          <div class="form-control">
+            <label class="label" for="username">
+              <span class="label-text flex items-center gap-1">
+                <i class="ph ph-user text-sky-400"></i>
+                アカウント名
+              </span>
+            </label>
+            <input
+              type="text"
+              id="username"
+              name="username"
+              placeholder="アカウント名を入力"
+              class="input input-bordered focus:input-primary w-full"
+              required
+            >
+          </div>
+
+          <%# パスワード入力欄 %>
+          <div class="form-control">
+            <label class="label" for="password">
+              <span class="label-text flex items-center gap-1">
+                <i class="ph ph-lock text-sky-400"></i>
+                パスワード
+              </span>
+            </label>
+            <input
+              type="password"
+              id="password"
+              name="password"
+              placeholder="パスワードを入力"
+              class="input input-bordered focus:input-primary w-full"
+              required
+            >
+          </div>
+
+          <%# パスワード確認入力欄 %>
+          <div class="form-control">
+            <label class="label" for="password_confirmation">
+              <span class="label-text flex items-center gap-1">
+                <i class="ph ph-lock-key text-sky-400"></i>
+                パスワード（確認）
+              </span>
+            </label>
+            <input
+              type="password"
+              id="password_confirmation"
+              name="password_confirmation"
+              placeholder="もう一度パスワードを入力"
+              class="input input-bordered focus:input-primary w-full"
+              required
+            >
+          </div>
+
+          <%# 登録ボタン %>
+          <div class="form-control mt-2">
+            <button type="submit" class="btn btn-primary w-full bg-sky-400 hover:bg-sky-500 border-none text-base-100 font-bold">
+              <i class="ph ph-check-circle text-lg"></i>
+              アカウントを作成する
+            </button>
+          </div>
+
+        </form>
+
+        <%# ログインページへのリンク %>
+        <div class="divider text-base-content/40 text-xs">すでにアカウントをお持ちの方</div>
+        <div class="text-center">
+          <a href="/login" class="link link-hover text-sky-400 text-sm flex items-center justify-center gap-1">
+            <i class="ph ph-sign-in text-base"></i>
+            ログインはこちら
+          </a>
+        </div>
+
+      </div>
+    </div>
+
+  </div>
+</div>

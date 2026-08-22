@@ -1,0 +1,102 @@
+<%# ============================================ %>
+<%# AI分割ログ一覧画面 %>
+<%# タスクごとの過去のAI分割履歴をすべて表示する %>
+<%# ============================================ %>
+
+<div class="min-h-screen py-8">
+
+  <%# ---- ヘッダーナビゲーション ---- %>
+  <div class="navbar bg-base-200 rounded-2xl shadow-lg mb-8 px-4">
+
+    <%# サービス名（左側） %>
+    <div class="navbar-start">
+      <span class="text-xl font-black tracking-tight">
+        <span class="text-sky-400">up</span><span class="text-white">stairs</span>
+      </span>
+    </div>
+
+    <%# ページタイトル（中央） %>
+    <div class="navbar-center">
+      <span class="text-base-content/70 text-sm font-medium flex items-center gap-1">
+        <i class="ph-fill ph-clock-counter-clockwise text-sky-400 text-lg"></i>
+        AI分割の履歴
+      </span>
+    </div>
+
+    <%# 戻るリンク（右側） %>
+    <div class="navbar-end">
+      <a href="/mypage" class="btn btn-ghost btn-sm flex items-center gap-1 text-sky-400">
+        <i class="ph ph-arrow-left text-lg"></i>
+        マイページに戻る
+      </a>
+    </div>
+
+  </div>
+
+  <%# ---- メインコンテンツ ---- %>
+  <div class="max-w-2xl mx-auto flex flex-col gap-6">
+
+    <%# 対象タスクの情報 %>
+    <div class="card bg-base-200 shadow-xl">
+      <div class="card-body gap-2">
+        <h2 class="card-title text-lg font-bold flex items-center gap-2">
+          <i class="ph-fill ph-target text-sky-400 text-xl"></i>
+          <%= @task.name %>
+        </h2>
+        <% if @task.due_date %>
+          <span class="text-base-content/60 text-sm flex items-center gap-1">
+            <i class="ph ph-calendar text-sky-400/70"></i>
+            締め切り: <%= @task.due_date.strftime('%Y年%m月%d日') %>
+          </span>
+        <% end %>
+        <span class="text-base-content/40 text-xs">
+          AI分割を <%= @logs.length %>回 実行しました
+        </span>
+      </div>
+    </div>
+
+    <%# ログが0件のとき %>
+    <% if @logs.empty? %>
+      <div class="card bg-base-200 shadow">
+        <div class="card-body items-center text-center py-12 gap-3">
+          <i class="ph ph-brain text-sky-400/50 text-5xl"></i>
+          <p class="text-base-content/50 text-sm">まだAI分割の履歴がありません。</p>
+        </div>
+      </div>
+
+    <%# ログを新しい順に表示 %>
+    <% else %>
+      <% @logs.each_with_index do |log, i| %>
+        <div class="card bg-base-200 shadow-md">
+          <div class="card-body gap-3">
+
+            <%# ログのヘッダー（日時・回数） %>
+            <div class="flex items-center justify-between">
+              <h3 class="font-bold flex items-center gap-2">
+                <i class="ph-fill ph-sparkle text-sky-400"></i>
+                <%= i == 0 ? '最新の分割結果' : "#{@logs.length - i}回目の結果" %>
+              </h3>
+              <span class="text-xs text-base-content/40">
+                <%= log.created_at.strftime('%Y年%m月%d日 %H:%M') %>
+              </span>
+            </div>
+
+            <%# AIの返答をマークダウンで表示 %>
+            <div data-markdown class="text-base-content/80 leading-relaxed text-sm"><%= log.result %></div>
+
+          </div>
+        </div>
+      <% end %>
+    <% end %>
+
+    <%# 戻るボタン %>
+    <div class="flex justify-center">
+      <a href="/mypage" class="btn btn-ghost flex items-center gap-2">
+        <i class="ph ph-arrow-left"></i>
+        マイページに戻る
+      </a>
+    </div>
+
+  </div>
+
+</div>

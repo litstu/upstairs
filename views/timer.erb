@@ -1,0 +1,91 @@
+<%# ============================================ %>
+<%# 集中タイマー画面 %>
+<%# GET /timer/:task_id から呼ばれる %>
+<%# @task: 対象タスク（Task モデル） %>
+<%# ============================================ %>
+
+<style>
+  #timer-display {
+    text-shadow:
+      0 0 20px rgba(56, 189, 248, 0.6),
+      0 0 40px rgba(56, 189, 248, 0.3),
+      0 0 60px rgba(56, 189, 248, 0.1);
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0.05em;
+  }
+
+  @keyframes fadeInScale {
+    from { opacity: 0; transform: scale(0.9); }
+    to   { opacity: 1; transform: scale(1); }
+  }
+
+  .fade-in {
+    animation: fadeInScale 0.4s ease-out forwards;
+  }
+</style>
+
+<%# タスク ID を main 要素の data 属性に持たせる %>
+<main data-task-id="<%= @task.id %>" class="min-h-screen flex flex-col items-center justify-center gap-8 py-12">
+
+  <%# ---- タスク名ヘッダー ---- %>
+  <div class="text-center">
+    <p class="text-base-content/50 text-sm font-medium tracking-widest uppercase mb-1">集中中</p>
+    <h1 class="text-2xl font-bold text-base-content flex items-center gap-2 justify-center">
+      <i class="ph-fill ph-target text-sky-400"></i>
+      <%= @task.name %>
+    </h1>
+  </div>
+
+  <%# ---- 完了コメントエリア（完了時だけ表示）---- %>
+  <div id="speech-bubble" class="hidden fade-in text-center text-base-content/80 text-sm leading-relaxed max-w-xs px-2">
+    <span class="loading loading-dots loading-xs text-sky-400"></span>
+  </div>
+
+  <%# ---- カウントダウン数字 ---- %>
+  <div id="timer-display" class="text-8xl font-black text-sky-400 tabular-nums">
+    25:00
+  </div>
+
+  <%# ---- スタート / 停止ボタン（タイマー開始前のみ表示） ---- %>
+  <div id="timer-controls" class="flex gap-4">
+    <button id="start-btn" class="btn btn-primary btn-lg gap-2 px-10">
+      <i class="ph-fill ph-play text-xl"></i>
+      スタート
+    </button>
+    <button id="stop-btn" class="btn btn-ghost btn-lg gap-2 px-8" disabled>
+      <i class="ph-fill ph-pause text-xl"></i>
+      停止
+    </button>
+  </div>
+
+  <%# マイページへ戻るリンク %>
+  <a href="/mypage" class="text-base-content/40 text-sm hover:text-base-content/70 transition-colors flex items-center gap-1">
+    <i class="ph ph-arrow-left text-sm"></i>
+    マイページへ戻る
+  </a>
+
+  <%# ---- 完了後のアクションボタン（初期は非表示） ---- %>
+  <div id="complete-actions" class="hidden fade-in flex flex-col gap-3 w-full max-w-xs">
+
+    <%# カレンダーで確認へ（押すとセッションを記録してカレンダーへ） %>
+    <form action="/sessions" method="post">
+      <input type="hidden" name="task_id" value="<%= @task.id %>">
+      <input type="hidden" name="duration_minutes" id="duration-input" value="25">
+      <button type="submit" class="btn btn-primary w-full gap-2">
+        <i class="ph-fill ph-calendar-check text-lg"></i>
+        カレンダーで確認する
+      </button>
+    </form>
+
+    <%# マイページへ戻る %>
+    <a href="/mypage" class="btn btn-ghost w-full gap-2">
+      <i class="ph ph-house text-lg"></i>
+      マイページへ戻る
+    </a>
+
+  </div>
+
+</main>
+
+<%# タイマーの JavaScript %>
+<script src="/js/timer.js"></script>
