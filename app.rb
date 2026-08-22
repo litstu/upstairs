@@ -1,5 +1,6 @@
 require 'bundler/setup'
-Bundler.require
+# 本番環境では開発用Gemを読み込まない設定に変更します
+Bundler.require(:default, ENV['RACK_ENV'] || :development)
 
 set :bind, '0.0.0.0'
 set :port, ENV['PORT'] || 4567
