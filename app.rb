@@ -1,6 +1,9 @@
 require 'bundler/setup'
 Bundler.require
 
+set :bind, '0.0.0.0'
+set :port, ENV['PORT'] || 4567
+
 require 'sinatra/reloader' if development?
 require 'bcrypt'
 
