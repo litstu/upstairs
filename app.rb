@@ -1,27 +1,22 @@
 require 'bundler/setup'
-# 本番環境では開発用Gemを読み込まない設定に変更します
+# 本番環境では開発用Gemを固定しないよう読み込み
 Bundler.require(:default, ENV['RACK_ENV'] || :development)
 
+# RenderとCloud9両方のポート指定に対応
 set :bind, '0.0.0.0'
-set :port, ENV['PORT'] || 4567
+set :port, ENV['PORT'] || 8080
 
 require 'sinatra/reloader' if development?
 require 'bcrypt'
 
 require './models.rb'
 
-# .env ファイルに書いた設定（AI Gateway のキーなど）を読み込む
-Dotenv.load
-
-# Cloud9 のプレビューで見られるように 0.0.0.0 の 8080 番ポートで起動する
-set :bind, '0.0.0.0'
-set :port, 8080
+# .env ファイルに書いた設定を読み込む（開発環境のみ）
+Dotenv.load if development?
 
 # セッションを有効にする（ログイン状態の管理に使う）
 enable :sessions
-# セッションの暗号化キー（32バイト以上が必要）
 set :session_secret, '0031df07c6cbbfd42f6d913ff3b74f531b70743405125ee6567a8a2a1e213b79b4c1d190722938b60ef8fd82187a297061fb93ffb36cc18f098ccec219ac673b'
-
 # ============================================
 # ログイン管理のヘルパーメソッド
 # ============================================
