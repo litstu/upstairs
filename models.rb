@@ -1,4 +1,5 @@
 require 'bundler/setup'
+require 'sinatra/activerecord' # ← これを先頭に追加！
 Bundler.require
 
 # 本番（Render）と開発（Cloud9）でデータベース接続を分岐
