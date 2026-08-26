@@ -9,7 +9,15 @@ Bundler.require(:default, ENV['RACK_ENV'] || :development)
 
 # DB接続設定を app.rb に配置
 set :database, ENV['DATABASE_URL'] || { adapter: 'sqlite3', database: 'db/development.sqlite3' }
-
+# 👇 ここから追加
+configure do
+  begin
+    ActiveRecord::MigrationContext.new('db/migrate', ActiveRecord::SchemaMigration).migrate
+  rescue => e
+    puts "マイグレーション実行エラー: #{e.message}"
+  end
+end
+# 👆 ここまで追加
 # RenderとCloud9両方のポート指定に対応
 set :bind, '0.0.0.0'
 set :port, ENV['PORT'] || 8080
