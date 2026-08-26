@@ -1,6 +1,14 @@
 require 'bundler/setup'
+require 'base64'
+require 'json'
 # 本番環境では開発用Gemを固定しないよう読み込み
 Bundler.require(:default, ENV['RACK_ENV'] || :development)
+
+require 'bundler/setup'
+Bundler.require(:default, ENV['RACK_ENV'] || :development)
+
+# DB接続設定を app.rb に配置
+set :database, ENV['DATABASE_URL'] || { adapter: 'sqlite3', database: 'db/development.sqlite3' }
 
 # RenderとCloud9両方のポート指定に対応
 set :bind, '0.0.0.0'
@@ -21,19 +29,23 @@ set :session_secret, '0031df07c6cbbfd42f6d913ff3b74f531b70743405125ee6567a8a2a1e
 # ログイン管理のヘルパーメソッド
 # ============================================
 
-# ログインしているかどうかを確認するメソッド
-def logged_in?
-  !session[:user_id].nil?
-end
-
 # ログイン中のユーザーを取得するメソッド
 def current_user
   @current_user ||= User.find_by(id: session[:user_id])
 end
 
-# ログインしていない場合はトップページへリダイレクトするメソッド
+# 実在するユーザーが取得できたかどうかを確認するメソッド
+def logged_in?
+  !current_user.nil?
+end
+
+# ログインしていない（またはユーザーが存在しない）場合は
+# 古いセッションを消去してトップページへリダイレクトするメソッド
 def require_login
-  redirect '/' unless logged_in?
+  unless logged_in?
+    session.clear
+    redirect '/'
+  end
 end
 
 # ============================================
@@ -190,12 +202,150 @@ end
 # ============================================
 post '/tasks' do
   require_login
-  current_user.tasks.create(
+
+  # 1. 親タスクの作成
+  task = current_user.tasks.create(
     name: params[:name],
-    description: params[:description].to_s.empty? ? nil : params[:description],
-    due_date: params[:due_date].to_s.empty? ? nil : params[:due_date],
-    color: Task::COLORS.include?(params[:color].to_s) ? params[:color] : 'sky'
+    description: params[:description],
+    due_date: params[:due_date].present? ? params[:due_date] : nil,
+    color: params[:color] || 'sky'
   )
+
+  files = params[:files] # 複数ファイルを受け取る
+
+  # 2. 写真が添付されている場合、全て読み込んでAIで解析
+  if files && files.is_a?(Array) && task.persisted?
+    parts = []
+
+    # アップロードされた全画像をBase64に変換してリクエストに追加
+    files.each do |file|
+      next unless file[:tempfile]
+      base64_data = Base64.strict_encode64(file[:tempfile].read)
+      parts << { inline_data: { mime_type: file[:type], data: base64_data } }
+    end
+
+    # 画像が1枚以上ある場合のみ処理を実行
+    if parts.any?
+      prompt = <<~PROMPT
+        添付されたすべての画像の向きを補正して目次を読み取ってください。
+        単元名やSection名を順に抽出し、必ず以下のJSON配列形式のみで返してください。
+        [
+          {"name": "Part 1 Section 1 形容詞句", "description": "p.16〜"},
+          {"name": "Part 1 Section 2 動詞句", "description": "p.20〜"}
+        ]
+      PROMPT
+
+      parts << { text: prompt }
+
+      payload = {
+        contents: [{ parts: parts }],
+        generationConfig: { response_mime_type: "application/json" }
+      }
+
+      key = ENV['GEMINI_API_KEY']
+      conn = Faraday.new(url: 'https://generativelanguage.googleapis.com') do |f|
+        f.request :json
+        f.response :json
+        f.adapter Faraday.default_adapter
+      end
+
+      response = conn.post("/v1beta/models/gemini-2.0-flash:generateContent?key=#{key.strip}") do |req|
+        req.headers['Content-Type'] = 'application/json'
+        req.body = payload
+      end
+
+      if response.status == 200
+        res_text = response.body.dig('candidates', 0, 'content', 'parts', 0, 'text').to_s
+        begin
+          tasks_data = JSON.parse(res_text)
+          tasks_data.each do |t|
+            next if t['name'].nil? || t['name'].empty?
+            current_user.tasks.create(
+              name: t['name'],
+              description: t['description'] || '',
+              due_date: task.due_date,
+              parent_task_id: task.id
+            )
+          end
+        rescue JSON::ParserError => e
+          puts "JSON解析エラー: #{e.message}"
+        end
+      end
+    end
+  end
+
+  redirect '/mypage'
+end
+
+post '/tasks/upload_ai' do
+  require_login
+
+  file = params[:file]
+  redirect '/mypage' unless file && file[:tempfile]
+
+  # ファイルを Base64 文字列に変換
+  base64_data = Base64.strict_encode64(file[:tempfile].read)
+  mime_type = file[:type]
+
+  key = ENV['GEMINI_API_KEY']
+  conn = Faraday.new(url: 'https://generativelanguage.googleapis.com') do |f|
+    f.request :json
+    f.response :json
+    f.adapter Faraday.default_adapter
+  end
+
+  # 画像の向きに関する指示と明確な抽出フォーマットを指定
+  prompt = <<~PROMPT
+    画像の向きが横向きや逆さになっている場合は正しく補正して読み取ってください。
+    この画像またはPDFから、学習すべき「Part」「Section」「章」「単元名」などの目次項目を抽出してください。
+
+    以下のキーを持つJSON配列形式で出力してください：
+    - "name": 単元名やSection名（例: "Part 1 Section 1 形容詞句・副詞句"）
+    - "description": 補足説明やページ数など（例: "p.16〜"）
+  PROMPT
+
+  payload = {
+    contents: [{
+      parts: [
+        { inline_data: { mime_type: mime_type, data: base64_data } },
+        { text: prompt }
+      ]
+    }],
+    # 応答を強制的にJSONのみにする設定
+    generationConfig: {
+      response_mime_type: "application/json"
+    }
+  }
+
+  response = conn.post("/v1beta/models/gemini-3.5-flash:generateContent?key=#{key.strip}") do |req|
+    req.headers['Content-Type'] = 'application/json'
+    req.body = payload
+  end
+
+  if response.status == 200
+    res_text = response.body.dig('candidates', 0, 'content', 'parts', 0, 'text').to_s
+    
+    begin
+      tasks_data = JSON.parse(res_text)
+      
+      tasks_data.each do |t|
+        next if t['name'].nil? || t['name'].empty?
+        
+        current_user.tasks.create(
+          name: t['name'],
+          description: t['description'] || '',
+          due_date: Date.today + 7
+        )
+      end
+    rescue JSON::ParserError => e
+      puts "JSONパースエラー: #{e.message}"
+      puts "AI応答内容: #{res_text}"
+    end
+  else
+    puts "APIエラー: Status #{response.status}"
+    puts response.body
+  end
+
   redirect '/mypage'
 end
 

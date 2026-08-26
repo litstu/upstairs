@@ -1,5 +1,4 @@
 require 'sinatra/activerecord'
 require 'sinatra/activerecord/rake'
-require './models.rb'
 require './app'
-require 'sinatra/activerecord/rake'
+require './models'

@@ -3,10 +3,6 @@ require 'sinatra/activerecord'
 Bundler.require
 
 # 本番（Render）と開発（Cloud9）の設定を Sinatra に直接指定
-set :database, ENV['DATABASE_URL'] || { adapter: 'sqlite3', database: 'db/development.sqlite3' }
-
-Time.zone = 'Tokyo'
-ActiveRecord.default_timezone = :local
 
 class User < ActiveRecord::Base
   has_secure_password

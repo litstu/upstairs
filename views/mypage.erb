@@ -211,7 +211,7 @@
           </h2>
 
           <%# 新規タスク登録フォーム（POST /tasks に送信） %>
-          <form action="/tasks" method="post" class="flex flex-col gap-3">
+          <form action="/tasks" method="post" enctype="multipart/form-data" class="flex flex-col gap-3">
 
             <%# タスク名の入力欄 %>
             <div class="form-control">
@@ -281,6 +281,24 @@
                   </label>
                 <% end %>
               </div>
+            </div>
+
+            <%# 写真・PDF添付欄 %>
+            <div class="form-control">
+              <label class="label pb-1">
+                <span class="label-text text-sm font-medium flex items-center gap-1">
+                  <i class="ph ph-camera text-sky-400"></i>
+                  教材画像・PDF（任意）
+                </span>
+              </label>
+              <!-- ⭕ 変更後 -->
+<input
+  type="file"
+  name="files[]"
+  accept="image/*,application/pdf"
+  multiple
+  class="file-input file-input-bordered file-input-info file-input-sm w-full text-xs"
+/>
             </div>
 
             <%# 登録ボタン %>

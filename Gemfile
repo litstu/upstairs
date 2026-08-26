@@ -3,7 +3,7 @@ ruby '3.4.1'
 
 gem 'sinatra', '~> 3.2'
 # 修正前: gem 'sinatra-activerecord', '~> 2.0'
-gem 'sinatra-activerecord', '~> 2.0', require: false
+gem 'sinatra-activerecord', '~> 2.0'
 gem 'sinatra-contrib', '~> 3.2'
 gem 'activerecord', '~> 7.0'
 
