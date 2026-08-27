@@ -1,0 +1,9 @@
+ruby '3.4.1'
+source 'https://rubygems.org'
+
+gem 'bcrypt', '~> 3.1'
+gem 'sinatra', '~> 3.2'
+gem 'sinatra-contrib', '~> 3.2'
+gem 'puma', '~> 6.4'
+gem 'webrick', '~> 1.7'
+gem 'ostruct'
