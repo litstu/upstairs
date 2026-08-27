@@ -6,7 +6,7 @@
 
 document.addEventListener('DOMContentLoaded', function () {
   var TIMER_MINUTES = 25;
-  var TOTAL_SECONDS = 10;//TIMER_MINUTES * 60;HERE I CHANGED!!
+  var TOTAL_SECONDS = TIMER_MINUTES * 60;//HERE I CHANGED!!
   var remainingSeconds = TOTAL_SECONDS;
   var intervalId = null;
 
