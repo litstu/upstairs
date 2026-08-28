@@ -36,6 +36,23 @@
     <%# ボタン群（右側） %>
     <div class="navbar-end flex items-center gap-2">
 
+
+<!-- 👇 ここから追加：テーマカラー変更ドロップダウン -->
+      <div class="dropdown dropdown-end">
+        <div tabindex="0" role="button" class="btn btn-ghost btn-sm flex items-center gap-1 text-base-content/70 hover:text-white">
+          <i class="ph ph-palette text-sky-400 text-lg"></i>
+          <span class="hidden sm:inline text-xs font-medium">テーマ</span>
+        </div>
+        <ul tabindex="0" class="dropdown-content z-[10] menu p-2 shadow-xl bg-base-200 rounded-2xl w-36 gap-1 border border-base-content/10 mt-2">
+          <li><button type="button" onclick="changeTheme('sky')" class="text-xs flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-sky-400"></span> スカイ</button></li>
+          <li><button type="button" onclick="changeTheme('emerald')" class="text-xs flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-emerald-400"></span> エメラルド</button></li>
+          <li><button type="button" onclick="changeTheme('violet')" class="text-xs flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-violet-400"></span> バイオレット</button></li>
+          <li><button type="button" onclick="changeTheme('amber')" class="text-xs flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-amber-400"></span> アンバー</button></li>
+          <li><button type="button" onclick="changeTheme('rose')" class="text-xs flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-rose-400"></span> ローズ</button></li>
+        </ul>
+      </div>
+      <!-- 👆 ここまで追加 -->
+
       <%# カレンダーへのリンク %>
       <a href="/calendar" class="btn btn-ghost btn-sm flex items-center gap-1 text-sky-400">
         <i class="ph ph-calendar text-lg"></i>
@@ -326,7 +343,35 @@
 
     <%# ==== 右カラム: タスク一覧 ==== %>
     <div class="w-full flex-1">
-      
+      <!-- 👇 ここから追加：AI自動スケジューリング -->
+      <div class="mb-6 p-5 bg-base-200 rounded-2xl border border-sky-400/30 shadow-lg">
+        <div class="flex items-center justify-between mb-3">
+          <h3 class="font-bold text-sm text-sky-400 flex items-center gap-2">
+            <i class="ph-fill ph-sparkle text-lg"></i>
+            AI「今日やること」自動スケジュール
+          </h3>
+          <span class="badge badge-info badge-sm text-white font-bold">AI提案</span>
+        </div>
+        <p class="text-xs text-base-content/60 mb-3">今日使える時間を入力すると、タスクから最適な学習順と時間配分を提案します。</p>
+        
+        <div class="flex gap-2">
+          <input 
+            type="number" 
+            id="available-hours" 
+            placeholder="今日使える時間（例: 2）" 
+            class="input input-bordered input-sm focus:input-info flex-1" 
+            min="0.5" 
+            step="0.5" 
+          />
+          <button onclick="generateSchedule()" class="btn btn-info btn-sm text-white font-bold gap-1">
+            <i class="ph-fill ph-magic-wand"></i>
+            スケジュール作成
+          </button>
+        </div>
+
+        <div id="ai-schedule-result" class="mt-4 text-xs bg-base-300/80 p-4 rounded-xl hidden whitespace-pre-wrap leading-relaxed border border-base-content/5"></div>
+      </div>
+      <!-- 👆 ここまで追加 -->
       <!-- 今日のタスク表示エリア -->
 <div class="mb-8 p-4 bg-slate-800 rounded-xl border border-sky-500/30">
   <h2 class="text-xl font-bold text-sky-400 mb-3">📅 今日のタスク（<%= Date.today.strftime('%m/%d') %>）</h2>
@@ -989,6 +1034,51 @@
   function closeDeleteModal() {
     document.getElementById('delete-modal').close();
   }
+  
+  // ============================================
+  // AI自動スケジュールの取得
+  // ============================================
+  function generateSchedule() {
+    var hoursInput = document.getElementById('available-hours');
+    var hours = hoursInput ? hoursInput.value : '';
+    if (!hours) return alert('今日使える時間を入力してください（例: 2）');
+
+    var resultDiv = document.getElementById('ai-schedule-result');
+    resultDiv.classList.remove('hidden');
+    resultDiv.innerHTML = '<div class="flex items-center gap-2"><span class="loading loading-dots loading-xs text-info"></span> AIが最適なスケジュールを考え中...</div>';
+
+    fetch('/ai/schedule', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: 'available_hours=' + encodeURIComponent(hours)
+    })
+    .then(function(res) { return res.json(); })
+    .then(function(data) {
+      resultDiv.textContent = data.schedule;
+    })
+    .catch(function() {
+      resultDiv.textContent = 'スケジュールの作成に失敗しました。もう一度お試しください。';
+    });
+  }
+
+  // ============================================
+  // テーマカラー切り替え（DaisyUI theme / localStorage）
+  // ============================================
+  function changeTheme(themeName) {
+    localStorage.setItem('user_theme', themeName);
+    applyTheme(themeName);
+  }
+
+  function applyTheme(themeName) {
+    document.documentElement.setAttribute('data-theme', themeName);
+  }
+
+  // ページ読み込み時に保存テーマを適用
+  (function() {
+    var savedTheme = localStorage.getItem('user_theme') || 'dark'; // デフォルトはdarkやskyなど
+    applyTheme(savedTheme);
+  })();
+  
 </script>
 
 

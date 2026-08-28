@@ -794,3 +794,33 @@ get '/api/stats' do
 
   { labels: labels, data: data }.to_json
 end
+
+
+post '/ai/schedule' do
+  require_login
+  content_type :json
+  available_hours = params[:available_hours].to_f
+
+  # 本日の未完了タスクを取得
+  today_tasks = current_user.tasks.where(completed: false)
+  task_list = today_tasks.map { |t| "- #{t.name} (説明: #{t.description})" }.join("\n")
+
+  prompt = <<~TEXT
+    ユーザーの今日使える学習時間は #{available_hours} 時間です。
+    以下のタスクリストから、時間内に収まる最適な優先順位と時間配分スケジュール（分単位）を作成してください。
+
+    【本日のタスク】
+    #{task_list.empty? ? '（タスクはありません。復習や自由学習を提案してください）' : task_list}
+  TEXT
+
+  messages = [
+    {
+      role: 'user',
+      content: [{ text: prompt }]
+    }
+  ]
+
+  ai_response = ask_ai(messages)
+
+  { schedule: ai_response }.to_json
+end
