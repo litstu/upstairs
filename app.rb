@@ -63,6 +63,9 @@ end
 # 接続先・アクセスキー・モデルは、セットアップ時に用意された環境変数を自動で使うので、
 # .env に鍵を書く必要はない（鍵をプロジェクトに残さない＝流出防止）。
 # ============================================
+# ============================================
+# AI Gateway に質問を送って回答をもらう関数
+# ============================================
 def ask_ai(messages)
   key = ENV['GEMINI_API_KEY']
   return 'GEMINI_API_KEYが設定されていません（.envを確認してください）' if key.nil? || key.strip.empty?
@@ -80,34 +83,47 @@ def ask_ai(messages)
     end
   end
 
-  # Faraday 通信の設定
   conn = Faraday.new(url: 'https://generativelanguage.googleapis.com') do |f|
     f.request :json
     f.response :json
     f.adapter Faraday.default_adapter
   end
 
-  # 利用可能一覧にあった gemini-3.5-flash を指定
-  response = conn.post("/v1beta/models/gemini-3.5-flash:generateContent?key=#{key.strip}") do |req|
-    req.headers['Content-Type'] = 'application/json'
-    req.options.timeout = 60
-    req.body = {
-      contents: [
-        {
-          parts: [{ text: prompt_text }]
-        }
-      ]
-    }
+  # --- 503エラー対策：最大3回のリトライ処理 ---
+  max_retries = 3
+  response = nil
+
+  max_retries.times do |attempt|
+    response = conn.post("/v1beta/models/gemini-2.0-flash:generateContent?key=#{key.strip}") do |req|
+      req.headers['Content-Type'] = 'application/json'
+      req.options.timeout = 60
+      req.body = {
+        contents: [
+          {
+            parts: [{ text: prompt_text }]
+          }
+        ]
+      }
+    end
+
+    # 成功(200)したらループを抜ける
+    break if response.status == 200
+
+    # 503(混雑)や429(レート制限)の場合は少し待ってリトライ
+    if [503, 429, 500, 502, 504].include?(response.status) && attempt < max_retries - 1
+      sleep(1.5 * (attempt + 1)) # 1.5秒、3.0秒と段階的に待機時間を伸ばす
+    else
+      break
+    end
   end
 
   # 通信成功時は回答文を取得
-  if response.status == 200
+  if response && response.status == 200
     data = response.body
     data.dig('candidates', 0, 'content', 'parts', 0, 'text')
   else
-    # 失敗時はステータスコードとGoogleからの詳細メッセージを表示
-    error_msg = response.body.is_a?(Hash) ? response.body.dig('error', 'message') : response.body
-    "AI通信エラー（ステータスコード: #{response.status}）: #{error_msg}"
+    # 3回試してもダメだった場合のフォールバック（優しい代替メッセージ）
+    "ただいまAIが混み合っているみたいです…☕️\n少し時間をおいてから、もう一度試してみてくださいね！"
   end
 rescue => e
   "エラーが発生しました: #{e.message}"
@@ -257,12 +273,24 @@ post '/tasks' do
         f.adapter Faraday.default_adapter
       end
 
-      response = conn.post("/v1beta/models/gemini-2.0-flash:generateContent?key=#{key.strip}") do |req|
-        req.headers['Content-Type'] = 'application/json'
-        req.body = payload
+      # 503エラー対策：最大3回自動リトライ
+      response = nil
+      3.times do |attempt|
+        response = conn.post("/v1beta/models/gemini-2.0-flash:generateContent?key=#{key.strip}") do |req|
+          req.headers['Content-Type'] = 'application/json'
+          req.body = payload
+        end
+        
+        # 通信成功(200)ならループを抜ける
+        break if response.status == 200
+        
+        # 503(混雑)や429(レート制限)等のエラー時は少し待ってリトライ
+        if [503, 429, 500, 502, 504].include?(response.status) && attempt < 2
+          sleep(1.5 * (attempt + 1))
+        end
       end
 
-      if response.status == 200
+      if response && response.status == 200
         res_text = response.body.dig('candidates', 0, 'content', 'parts', 0, 'text').to_s
         begin
           tasks_data = JSON.parse(res_text)
@@ -278,6 +306,9 @@ post '/tasks' do
         rescue JSON::ParserError => e
           puts "JSON解析エラー: #{e.message}"
         end
+      else
+        status_code = response ? response.status : 'No response'
+        puts "AI通信エラー（ステータスコード: #{status_code}）"
       end
     end
   end
