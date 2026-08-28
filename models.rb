@@ -18,26 +18,26 @@ class User < ActiveRecord::Base
   
   # models.rb の class User < ActiveRecord::Base 内に追加
 def current_streak
-  # 学習記録のある日付（降順・重複なし）を取得
-  dates = focus_sessions.pluck(:focused_at).compact.map(&:to_date).uniq.sort.reverse
-  return 0 if dates.empty?
+    # 学習記録のある日付（降順・重複なし）を取得
+    dates = focus_sessions.pluck(:focused_at).compact.map(&:to_date).uniq.sort.reverse
+    return 1 if dates.empty? # 記録がない場合の初期値を 1 に設定
 
-  today = Date.today
-  yesterday = today - 1
+    today = Date.today
+    yesterday = today - 1
 
-  # 今日または昨日に記録がない場合はストリーク終了
-  return 0 unless dates.include?(today) || dates.include?(yesterday)
+    # 今日・昨日に記録がない場合も 1 を返す
+    return 1 unless dates.include?(today) || dates.include?(yesterday)
 
-  streak = 0
-  check_date = dates.include?(today) ? today : yesterday
+    streak = 0
+    check_date = dates.include?(today) ? today : yesterday
 
-  while dates.include?(check_date)
-    streak += 1
-    check_date -= 1
+    while dates.include?(check_date)
+      streak += 1
+      check_date -= 1
+    end
+
+    [streak, 1].max # 最低でも 1 を保証
   end
-
-  streak
-end
   
 end
 
