@@ -480,8 +480,12 @@
                     <%# 「編集」ボタン: モーダルを開く %>
                     <button
                       type="button"
-                      class="btn btn-ghost btn-sm text-base-content/50 hover:text-white px-2"
-                      onclick="openEditModal('<%= task.id %>', '<%= ERB::Util.html_escape(task.name) %>', '<%= ERB::Util.html_escape(task.description.to_s) %>', '<%= task.due_date ? task.due_date.strftime('%Y-%m-%d') : '' %>', '<%= task.color %>')"
+                      class="btn btn-ghost btn-sm text-base-content/50 hover:text-white px-2 edit-task-btn"
+                      data-id="<%= task.id %>"
+                      data-name="<%= task.name %>"
+                      data-description="<%= task.description.to_s %>"
+                      data-due-date="<%= task.due_date ? task.due_date.strftime('%Y-%m-%d') : '' %>"
+                      data-color="<%= task.color %>"
                       title="タスクを編集"
                     >
                       <i class="ph ph-pencil-simple text-xl"></i>
@@ -565,8 +569,12 @@
                           <%# 「編集」ボタン %>
                           <button
                             type="button"
-                            class="btn btn-ghost btn-xs text-base-content/50 hover:text-white px-1"
-                            onclick="openEditModal('<%= child.id %>', '<%= ERB::Util.html_escape(child.name) %>', '<%= ERB::Util.html_escape(child.description.to_s) %>', '<%= child.due_date ? child.due_date.strftime('%Y-%m-%d') : '' %>', '')"
+                            class="btn btn-ghost btn-xs text-base-content/50 hover:text-white px-1 edit-task-btn"
+                            data-id="<%= child.id %>"
+                            data-name="<%= child.name %>"
+                            data-description="<%= child.description.to_s %>"
+                            data-due-date="<%= child.due_date ? child.due_date.strftime('%Y-%m-%d') : '' %>"
+                            data-color=""
                             title="タスクを編集"
                           >
                             <i class="ph ph-pencil-simple text-base"></i>
@@ -843,9 +851,27 @@
     });
   });
 
+// ============================================
+  // 編集ボタンのクリック監視（data属性からデータ取得）
+  // ============================================
+  document.addEventListener('click', function(e) {
+    var btn = e.target.closest('.edit-task-btn');
+    if (!btn) return;
+
+    var taskId          = btn.getAttribute('data-id');
+    var taskName        = btn.getAttribute('data-name');
+    var taskDescription = btn.getAttribute('data-description');
+    var taskDueDate     = btn.getAttribute('data-due-date');
+    var taskColor       = btn.getAttribute('data-color');
+
+    openEditModal(taskId, taskName, taskDescription, taskDueDate, taskColor);
+  });
+
+
   // ============================================
   // 編集モーダルを開く
   // ============================================
+  
   function openEditModal(taskId, taskName, taskDescription, taskDueDate, taskColor) {
     var modal = document.getElementById('edit-modal');
     var form  = document.getElementById('edit-form');
