@@ -46,6 +46,25 @@
     25:00
   </div>
 
+<!-- 👇 ここから追加：モード選択UI -->
+<div id="mode-selector" class="flex flex-col sm:flex-row gap-3 my-2 w-full max-w-xs">
+  <label class="cursor-pointer flex items-center gap-3 p-3 rounded-xl border border-sky-500/30 bg-base-200 hover:bg-base-300 flex-1">
+    <input type="radio" name="timer_mode" value="realtime" class="radio radio-info radio-sm" checked />
+    <div class="text-left">
+      <span class="text-xs font-bold block text-sky-400">💻 画面維持</span>
+      <span class="text-[10px] text-base-content/60">開いたまま集中（離脱不可）</span>
+    </div>
+  </label>
+  <label class="cursor-pointer flex items-center gap-3 p-3 rounded-xl border border-sky-500/30 bg-base-200 hover:bg-base-300 flex-1">
+    <input type="radio" name="timer_mode" value="background" class="radio radio-info radio-sm" />
+    <div class="text-left">
+      <span class="text-xs font-bold block text-sky-400">📱 放置OK</span>
+      <span class="text-[10px] text-base-content/60">閉じても更新しても継続</span>
+    </div>
+  </label>
+</div>
+<!-- 👆 ここまで追加 -->
+
   <%# ---- スタート / 停止ボタン（タイマー開始前のみ表示） ---- %>
   <div id="timer-controls" class="flex gap-4">
     <button id="start-btn" class="btn btn-primary btn-lg gap-2 px-10">
