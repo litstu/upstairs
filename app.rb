@@ -770,3 +770,27 @@ post '/ai/yuru_reminder' do
   content_type :json
   { message: ai_text }.to_json
 end
+
+
+
+# ============================================
+# 過去7日間の学習時間を取得するJSON API
+# ============================================
+get '/api/stats' do
+  require_login
+  content_type :json
+
+  # 過去7日分の日付配列を作成 (例: ["08/22", "08/23", ...])
+  past_7_days = (6.days.ago.to_date..Date.today).to_a
+
+  # ログインユーザーの過去7日間のセッションを取得して日付ごとに集計
+  sessions = current_user.focus_sessions
+    .where(focused_at: past_7_days.first..past_7_days.last)
+    .group(:focused_at)
+    .sum(:duration_minutes)
+
+  labels = past_7_days.map { |d| d.strftime('%m/%d') }
+  data = past_7_days.map { |d| sessions[d] || 0 }
+
+  { labels: labels, data: data }.to_json
+end

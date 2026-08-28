@@ -15,6 +15,30 @@ class User < ActiveRecord::Base
   def add_points(amount)
     increment!(:points, amount)
   end
+  
+  # models.rb の class User < ActiveRecord::Base 内に追加
+def current_streak
+  # 学習記録のある日付（降順・重複なし）を取得
+  dates = focus_sessions.pluck(:focused_at).compact.map(&:to_date).uniq.sort.reverse
+  return 0 if dates.empty?
+
+  today = Date.today
+  yesterday = today - 1
+
+  # 今日または昨日に記録がない場合はストリーク終了
+  return 0 unless dates.include?(today) || dates.include?(yesterday)
+
+  streak = 0
+  check_date = dates.include?(today) ? today : yesterday
+
+  while dates.include?(check_date)
+    streak += 1
+    check_date -= 1
+  end
+
+  streak
+end
+  
 end
 
 class Task < ActiveRecord::Base

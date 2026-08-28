@@ -177,6 +177,15 @@
     <span class="text-xs text-base-content/30">タスク完了 +10pt / タイマー完走 +100pt</span>
   </div>
 
+<%# ---- 連続学習ストリーク ---- %>
+  <div class="mb-6 bg-base-200 border border-orange-400/30 rounded-2xl px-5 py-3 shadow flex items-center gap-3">
+    <span class="text-2xl">🔥</span>
+    <div class="flex items-baseline gap-1">
+      <span class="text-2xl font-black text-orange-400"><%= @user.current_streak %></span>
+      <span class="text-sm font-bold text-base-content/80">日連続学習中！</span>
+    </div>
+  </div>
+
   <%# ---- 1000pt 達成バナー（初回のみ表示） ---- %>
   <% if @user.points >= 1000 && !@user.leaderboard_notified %>
     <div id="leaderboard-banner" class="mb-6 rounded-2xl bg-gradient-to-r from-amber-400/20 to-yellow-400/10 border border-amber-400/30 px-5 py-4 flex items-center gap-4 shadow">
@@ -359,6 +368,57 @@
   <% end %>
 </div>
 
+<!-- 👇 ここから追加：過去7日間の学習時間グラフ -->
+      <div class="mb-8 p-5 bg-base-200 rounded-2xl border border-base-content/10 shadow-lg">
+        <h3 class="text-base font-bold text-base-content/80 mb-4 flex items-center gap-2">
+          📊 過去7日間の集中時間（分）
+        </h3>
+        <canvas id="studyChart" class="w-full max-h-60"></canvas>
+      </div>
+
+      <!-- Chart.js ライブラリと描画スクリプト -->
+      <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+      <script>
+        document.addEventListener('DOMContentLoaded', () => {
+          fetch('/api/stats')
+            .then(response => response.json())
+            .then(resData => {
+              const ctx = document.getElementById('studyChart').getContext('2d');
+              new Chart(ctx, {
+                type: 'bar',
+                data: {
+                  labels: resData.labels,
+                  datasets: [{
+                    label: '集中時間 (分)',
+                    data: resData.data,
+                    backgroundColor: 'rgba(56, 189, 248, 0.6)', // sky-400に合わせた色
+                    borderColor: 'rgba(56, 189, 248, 1)',
+                    borderWidth: 1,
+                    borderRadius: 6
+                  }]
+                },
+                options: {
+                  responsive: true,
+                  plugins: {
+                    legend: { display: false } // 凡例を非表示にしてスッキリ化
+                  },
+                  scales: {
+                    y: {
+                      beginAtZero: true,
+                      ticks: { color: '#9ca3af', stepSize: 15 },
+                      grid: { color: 'rgba(255, 255, 255, 0.1)' }
+                    },
+                    x: {
+                      ticks: { color: '#9ca3af' },
+                      grid: { display: false }
+                    }
+                  }
+                }
+              });
+            });
+        });
+      </script>
+      <!-- 👆 ここまで追加 -->
 
       <%# タスク一覧の見出し %>
       <h2 class="text-xl font-bold flex items-center gap-2 mb-4">
@@ -930,3 +990,5 @@
     document.getElementById('delete-modal').close();
   }
 </script>
+
+
