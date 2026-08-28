@@ -66,22 +66,12 @@ end
 # ============================================
 # AI Gateway に質問を送って回答をもらう関数
 # ============================================
-def ask_ai(messages)
+# ============================================
+# Gemini API 通信の共通処理（レート制限・混雑対策付き）
+# ============================================
+def call_gemini_api(payload, model: 'gemini-2.0-flash')
   key = ENV['GEMINI_API_KEY']
-  return 'GEMINI_API_KEYが設定されていません（.envを確認してください）' if key.nil? || key.strip.empty?
-
-  # messages からプロンプトテキストを抽出
-  prompt_text = ''
-  messages.each do |msg|
-    contents = msg[:content] || msg['content'] || []
-    if contents.is_a?(Array)
-      contents.each do |c|
-        prompt_text += (c[:text] || c['text'] || '') + "\n"
-      end
-    elsif contents.is_a?(String)
-      prompt_text += contents + "\n"
-    end
-  end
+  return { success: false, error: 'GEMINI_API_KEY未設定' } if key.nil? || key.strip.empty?
 
   conn = Faraday.new(url: 'https://generativelanguage.googleapis.com') do |f|
     f.request :json
@@ -89,44 +79,62 @@ def ask_ai(messages)
     f.adapter Faraday.default_adapter
   end
 
-  # --- 503エラー対策：最大3回のリトライ処理 ---
   max_retries = 3
   response = nil
 
   max_retries.times do |attempt|
-    response = conn.post("/v1beta/models/gemini-2.0-flash:generateContent?key=#{key.strip}") do |req|
+    response = conn.post("/v1beta/models/#{model}:generateContent?key=#{key.strip}") do |req|
       req.headers['Content-Type'] = 'application/json'
       req.options.timeout = 60
-      req.body = {
-        contents: [
-          {
-            parts: [{ text: prompt_text }]
-          }
-        ]
-      }
+      req.body = payload
     end
 
-    # 成功(200)したらループを抜ける
+    # 成功(200)したらループ脱出
     break if response.status == 200
 
-    # 503(混雑)や429(レート制限)の場合は少し待ってリトライ
-    if [503, 429, 500, 502, 504].include?(response.status) && attempt < max_retries - 1
-      sleep(1.5 * (attempt + 1)) # 1.5秒、3.0秒と段階的に待機時間を伸ばす
+    # 429(レート制限)や503(混雑)時は待機時間を徐々に伸ばして再試行（2秒 -> 4秒 -> 8秒）
+    if [429, 503, 500, 502, 504].include?(response.status) && attempt < max_retries - 1
+      sleep_time = 2 ** (attempt + 1)
+      sleep(sleep_time)
     else
       break
     end
   end
 
-  # 通信成功時は回答文を取得
   if response && response.status == 200
-    data = response.body
-    data.dig('candidates', 0, 'content', 'parts', 0, 'text')
+    text = response.body.dig('candidates', 0, 'content', 'parts', 0, 'text').to_s
+    { success: true, text: text }
   else
-    # 3回試してもダメだった場合のフォールバック（優しい代替メッセージ）
-    "ただいまAIが混み合っているみたいです…☕️\n少し時間をおいてから、もう一度試してみてくださいね！"
+    status = response ? response.status : 'No response'
+    err_msg = response&.body.is_a?(Hash) ? response.body.dig('error', 'message') : response&.body
+    { success: false, status: status, error: err_msg }
   end
 rescue => e
-  "エラーが発生しました: #{e.message}"
+  { success: false, error: e.message }
+end
+
+# ============================================
+# AI にテキスト質問を送る関数
+# ============================================
+def ask_ai(messages)
+  prompt_text = ''
+  messages.each do |msg|
+    contents = msg[:content] || msg['content'] || []
+    if contents.is_a?(Array)
+      contents.each { |c| prompt_text += (c[:text] || c['text'] || '') + "\n" }
+    elsif contents.is_a?(String)
+      prompt_text += contents + "\n"
+    end
+  end
+
+  payload = { contents: [{ parts: [{ text: prompt_text }] }] }
+  res = call_gemini_api(payload)
+
+  if res[:success]
+    res[:text]
+  else
+    "ただいまAIが混み合っているか制限中です☕️\n少し時間をおいてから、もう一度試してみてください。（エラーコード: #{res[:status]}）"
+  end
 end
 
 # ============================================
@@ -237,18 +245,16 @@ post '/tasks' do
 
   files = params[:files] # 複数ファイルを受け取る
 
-  # 2. 写真が添付されている場合、全て読み込んでAIで解析
+  # 2. 写真が添付されている場合、共通処理を呼び出してAIで解析
   if files && files.is_a?(Array) && task.persisted?
     parts = []
 
-    # アップロードされた全画像をBase64に変換してリクエストに追加
     files.each do |file|
       next unless file[:tempfile]
       base64_data = Base64.strict_encode64(file[:tempfile].read)
       parts << { inline_data: { mime_type: file[:type], data: base64_data } }
     end
 
-    # 画像が1枚以上ある場合のみ処理を実行
     if parts.any?
       prompt = <<~PROMPT
         添付されたすべての画像の向きを補正して目次を読み取ってください。
@@ -260,40 +266,17 @@ post '/tasks' do
       PROMPT
 
       parts << { text: prompt }
-
       payload = {
         contents: [{ parts: parts }],
         generationConfig: { response_mime_type: "application/json" }
       }
 
-      key = ENV['GEMINI_API_KEY']
-      conn = Faraday.new(url: 'https://generativelanguage.googleapis.com') do |f|
-        f.request :json
-        f.response :json
-        f.adapter Faraday.default_adapter
-      end
+      # 共通AI呼び出し関数を使用
+      res = call_gemini_api(payload)
 
-      # 503エラー対策：最大3回自動リトライ
-      response = nil
-      3.times do |attempt|
-        response = conn.post("/v1beta/models/gemini-2.0-flash:generateContent?key=#{key.strip}") do |req|
-          req.headers['Content-Type'] = 'application/json'
-          req.body = payload
-        end
-        
-        # 通信成功(200)ならループを抜ける
-        break if response.status == 200
-        
-        # 503(混雑)や429(レート制限)等のエラー時は少し待ってリトライ
-        if [503, 429, 500, 502, 504].include?(response.status) && attempt < 2
-          sleep(1.5 * (attempt + 1))
-        end
-      end
-
-      if response && response.status == 200
-        res_text = response.body.dig('candidates', 0, 'content', 'parts', 0, 'text').to_s
+      if res[:success]
         begin
-          tasks_data = JSON.parse(res_text)
+          tasks_data = JSON.parse(res[:text])
           tasks_data.each do |t|
             next if t['name'].nil? || t['name'].empty?
             current_user.tasks.create(
@@ -307,8 +290,7 @@ post '/tasks' do
           puts "JSON解析エラー: #{e.message}"
         end
       else
-        status_code = response ? response.status : 'No response'
-        puts "AI通信エラー（ステータスコード: #{status_code}）"
+        puts "AI処理失敗: #{res[:error]}"
       end
     end
   end
@@ -322,18 +304,9 @@ post '/tasks/upload_ai' do
   file = params[:file]
   redirect '/mypage' unless file && file[:tempfile]
 
-  # ファイルを Base64 文字列に変換
   base64_data = Base64.strict_encode64(file[:tempfile].read)
   mime_type = file[:type]
 
-  key = ENV['GEMINI_API_KEY']
-  conn = Faraday.new(url: 'https://generativelanguage.googleapis.com') do |f|
-    f.request :json
-    f.response :json
-    f.adapter Faraday.default_adapter
-  end
-
-  # 画像の向きに関する指示と明確な抽出フォーマットを指定
   prompt = <<~PROMPT
     画像の向きが横向きや逆さになっている場合は正しく補正して読み取ってください。
     この画像またはPDFから、学習すべき「Part」「Section」「章」「単元名」などの目次項目を抽出してください。
@@ -350,22 +323,17 @@ post '/tasks/upload_ai' do
         { text: prompt }
       ]
     }],
-    # 応答を強制的にJSONのみにする設定
     generationConfig: {
       response_mime_type: "application/json"
     }
   }
 
-  response = conn.post("/v1beta/models/gemini-3.5-flash:generateContent?key=#{key.strip}") do |req|
-    req.headers['Content-Type'] = 'application/json'
-    req.body = payload
-  end
+  # 共通AI呼び出し関数を使用
+  res = call_gemini_api(payload)
 
-  if response.status == 200
-    res_text = response.body.dig('candidates', 0, 'content', 'parts', 0, 'text').to_s
-    
+  if res[:success]
     begin
-      tasks_data = JSON.parse(res_text)
+      tasks_data = JSON.parse(res[:text])
       
       tasks_data.each do |t|
         next if t['name'].nil? || t['name'].empty?
@@ -378,11 +346,10 @@ post '/tasks/upload_ai' do
       end
     rescue JSON::ParserError => e
       puts "JSONパースエラー: #{e.message}"
-      puts "AI応答内容: #{res_text}"
+      puts "AI応答内容: #{res[:text]}"
     end
   else
-    puts "APIエラー: Status #{response.status}"
-    puts response.body
+    puts "APIエラー: #{res[:error]}"
   end
 
   redirect '/mypage'
