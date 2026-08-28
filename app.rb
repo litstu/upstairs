@@ -69,7 +69,10 @@ end
 # ============================================
 # Gemini API 通信の共通処理（レート制限・混雑対策付き）
 # ============================================
-def call_gemini_api(payload, model: 'gemini-2.0-flash')
+# ============================================
+# Gemini API 通信の共通処理（リトライ1回・gemini-1.5-flash指定）
+# ============================================
+def call_gemini_api(payload, model: 'gemini-1.5-flash')
   key = ENV['GEMINI_API_KEY']
   return { success: false, error: 'GEMINI_API_KEY未設定' } if key.nil? || key.strip.empty?
 
@@ -79,7 +82,8 @@ def call_gemini_api(payload, model: 'gemini-2.0-flash')
     f.adapter Faraday.default_adapter
   end
 
-  max_retries = 3
+  # リトライ回数を1回に変更
+  max_retries = 1
   response = nil
 
   max_retries.times do |attempt|
@@ -92,7 +96,6 @@ def call_gemini_api(payload, model: 'gemini-2.0-flash')
     # 成功(200)したらループ脱出
     break if response.status == 200
 
-    # 429(レート制限)や503(混雑)時は待機時間を徐々に伸ばして再試行（2秒 -> 4秒 -> 8秒）
     if [429, 503, 500, 502, 504].include?(response.status) && attempt < max_retries - 1
       sleep_time = 2 ** (attempt + 1)
       sleep(sleep_time)
