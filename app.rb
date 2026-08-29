@@ -72,7 +72,7 @@ end
 # ============================================
 # Gemini API 通信の共通処理（リトライ1回・gemini-1.5-flash指定）
 # ============================================
-def call_gemini_api(payload, model: 'gemini-2.0-flash')
+def call_gemini_api(payload, model: 'gemini-3.6-flash')
   key = ENV['GEMINI_API_KEY']
   return { success: false, error: 'GEMINI_API_KEY未設定' } if key.nil? || key.strip.empty?
 
