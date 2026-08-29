@@ -136,7 +136,7 @@ def ask_ai(messages)
   if res[:success]
     res[:text]
   else
-    "ただいまAIが混み合っているか制限中です☕️\n少し時間をおいてから、もう一度試してみてください。（エラーコード: #{res[:status]}）"
+    "エラー詳細: [#{res[:status]}] #{res[:error]}" #"ただいまAIが混み合っているか制限中です☕️\n少し時間をおいてから、もう一度試してみてください。（エラーコード: #{res[:status]}）"
   end
 end
 
