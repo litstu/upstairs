@@ -37,21 +37,31 @@
     <div class="navbar-end flex items-center gap-2">
 
 
-<!-- 👇 ここから追加：テーマカラー変更ドロップダウン -->
+<!-- 👇 テーマカラー変更ドロップダウン -->
       <div class="dropdown dropdown-end">
         <div tabindex="0" role="button" class="btn btn-ghost btn-sm flex items-center gap-1 text-base-content/70 hover:text-white">
           <i class="ph ph-palette text-sky-400 text-lg"></i>
           <span class="hidden sm:inline text-xs font-medium">テーマ</span>
         </div>
         <ul tabindex="0" class="dropdown-content z-[10] menu p-2 shadow-xl bg-base-200 rounded-2xl w-36 gap-1 border border-base-content/10 mt-2">
-          <li><button type="button" onclick="changeTheme('sky')" class="text-xs flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-sky-400"></span> スカイ</button></li>
-          <li><button type="button" onclick="changeTheme('emerald')" class="text-xs flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-emerald-400"></span> エメラルド</button></li>
-          <li><button type="button" onclick="changeTheme('violet')" class="text-xs flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-violet-400"></span> バイオレット</button></li>
-          <li><button type="button" onclick="changeTheme('amber')" class="text-xs flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-amber-400"></span> アンバー</button></li>
-          <li><button type="button" onclick="changeTheme('rose')" class="text-xs flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-rose-400"></span> ローズ</button></li>
+          <li>
+            <button type="button" onclick="changeTheme('default')" class="text-xs flex items-center gap-2">
+              <span class="w-3 h-3 rounded-full bg-sky-400"></span> デフォルト
+            </button>
+          </li>
+          <li>
+            <button type="button" onclick="changeTheme('black')" class="text-xs flex items-center gap-2">
+              <span class="w-3 h-3 rounded-full bg-slate-950 border border-slate-700"></span> ブラック
+            </button>
+          </li>
+          <li>
+            <button type="button" onclick="changeTheme('light')" class="text-xs flex items-center gap-2">
+              <span class="w-3 h-3 rounded-full bg-white border border-slate-300"></span> ホワイト
+            </button>
+          </li>
         </ul>
       </div>
-      <!-- 👆 ここまで追加 -->
+      <!-- 👆 ここまで -->
 
       <%# カレンダーへのリンク %>
       <a href="/calendar" class="btn btn-ghost btn-sm flex items-center gap-1 text-sky-400">
@@ -1064,20 +1074,24 @@
   // ============================================
   // テーマカラー切り替え（DaisyUI theme / localStorage）
   // ============================================
+  // テーマ切り替え処理
   function changeTheme(themeName) {
-    localStorage.setItem('user_theme', themeName);
-    applyTheme(themeName);
+    if (themeName === 'default') {
+      document.documentElement.removeAttribute('data-theme');
+      localStorage.removeItem('user_theme');
+    } else {
+      document.documentElement.setAttribute('data-theme', themeName);
+      localStorage.setItem('user_theme', themeName);
+    }
   }
 
-  function applyTheme(themeName) {
-    document.documentElement.setAttribute('data-theme', themeName);
-  }
-
-  // ページ読み込み時に保存テーマを適用
-  (function() {
-    var savedTheme = localStorage.getItem('user_theme') || 'dark'; // デフォルトはdarkやskyなど
-    applyTheme(savedTheme);
-  })();
+  // ページ読み込み時に保存されたテーマを適用
+  document.addEventListener('DOMContentLoaded', function() {
+    const savedTheme = localStorage.getItem('user_theme');
+    if (savedTheme) {
+      document.documentElement.setAttribute('data-theme', savedTheme);
+    }
+  });
   
 </script>
 
